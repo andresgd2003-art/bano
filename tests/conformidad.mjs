@@ -37,6 +37,19 @@ function post(body, { token = TOKEN } = {}) {
   return { status, json, raw: raw.slice(0, i) };
 }
 
+// Manda un body crudo tal cual, para probar JSON malformado.
+function postCrudo(texto) {
+  const f = join(dir, "crudo.txt");
+  writeFileSync(f, texto);
+  const raw = execFileSync("curl", ["-s", "-m", "60", "-X", "POST", BASE + "/responses",
+    "-H", "Content-Type: application/json", "-H", "Authorization: Bearer " + TOKEN,
+    "-w", "|__HTTP__%{http_code}", "--data-binary", "@" + f], { encoding: "utf8" });
+  const i = raw.lastIndexOf("|__HTTP__");
+  let json = null;
+  try { json = JSON.parse(raw.slice(0, i)); } catch {}
+  return { status: Number(raw.slice(i + 9).trim()), json, raw: raw.slice(0, i) };
+}
+
 let fallos = 0;
 function check(nombre, cond, detalle = "") {
   if (cond) { console.log("  ok    " + nombre); }
@@ -114,6 +127,46 @@ console.log("#3 input como string y como array");
   const vacio = post({ model: "bano", input: [] });
   check("array vacio -> error de validacion", vacio.status >= 400 && vacio.status < 500,
     "http=" + vacio.status);
+}
+
+// --- Ticket #4: peticiones malformadas ---
+console.log("");
+console.log("#4 errores de validacion");
+{
+  // Regresion critica: la plataforma real NO manda `model`.
+  // Exigirlo romperia el endpoint en el primer mensaje del evaluador.
+  const comoLaPlataforma = post({
+    input: [{ role: "user", type: "message", content: [{ type: "input_text", text: "hola" }] }],
+    stream: true,
+    store: true,
+  });
+  check("body real de la plataforma (sin model) -> 200", comoLaPlataforma.status === 200,
+    "http=" + comoLaPlataforma.status);
+
+  const err = (r) => (r.json || {}).error || {};
+
+  const sinInput = post({ stream: true });
+  check("falta input -> 400", sinInput.status === 400, "http=" + sinInput.status);
+  check("el error apunta a input", err(sinInput).param === "input",
+    "param=" + err(sinInput).param);
+
+  const tipoMalo = post({ input: 123 });
+  check("input de tipo invalido -> 400", tipoMalo.status === 400, "http=" + tipoMalo.status);
+
+  const sinType = post({ input: [{ role: "user", content: [{ type: "input_text", text: "x" }] }] });
+  check("item sin type -> 400", sinType.status === 400, "http=" + sinType.status);
+
+  // n8n atrapa el JSON roto antes del flujo: responde 422 con su propio cuerpo.
+  // No se puede interceptar. Se exige lo alcanzable: 4xx y JSON, nunca 200 ni 500.
+  const roto = postCrudo('{"input": "hola"');
+  check("JSON roto -> 4xx (no 200 ni 500)", roto.status >= 400 && roto.status < 500,
+    "http=" + roto.status);
+  check("JSON roto -> el cuerpo es JSON", roto.json !== null, "cuerpo=" + roto.raw.slice(0, 120));
+
+  // Ningun error debe filtrar el nombre de un nodo ni una traza interna.
+  const fugas = [sinInput, tipoMalo, sinType].map((r) => r.raw).join(" ");
+  check("los errores no filtran nombres de nodos ni trazas",
+    !/Autorizar|Construir response|Leer token|evalmachine|node_modules/i.test(fugas));
 }
 
 console.log("");
