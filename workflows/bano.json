@@ -1,0 +1,76 @@
+{
+  "name": "BANO — Open Responses endpoint",
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bano/v1/responses",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "bano-v1-responses"
+    },
+    {
+      "id": "construir",
+      "name": "Construir response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Construye un objeto `response` conforme a Open Responses.\n// Ticket #1: sin autenticacion y sin agente. Solo fija la forma de la salida.\n\nconst body = $json.body ?? {};\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// ponytail: el ticket #1 solo exige `input` como string.\n// El array de items lo cubre el ticket #3.\nconst texto = typeof body.input === 'string' ? body.input : '';\n\nreturn [{\n  json: {\n    id: id('resp'),\n    object: 'response',\n    created_at: Math.floor(Date.now() / 1000),\n    status: 'completed',\n    model: body.model ?? 'bano',\n    output: [\n      {\n        id: id('msg'),\n        type: 'message',\n        status: 'completed',\n        role: 'assistant',\n        content: [\n          {\n            type: 'output_text',\n            text: 'eco: ' + texto,\n            annotations: [],\n          },\n        ],\n      },\n    ],\n    usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n  },\n}];"
+      }
+    },
+    {
+      "id": "responder",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Construir response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir response": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
