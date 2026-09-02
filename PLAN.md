@@ -51,7 +51,9 @@ válido, y otro con `input` como array devuelve lo mismo.
 
 Redactar el documento de trayectoria (partiendo de `cv_altumware_ai_developer.html`, que ya es
 completo) **sin datos de contacto**, y exportarlo a PDF. Levantar el servicio pgvector.
-Workflow de ingesta separado: PDF → troceado → embeddings NVIDIA (2048 dims) → pgvector.
+Workflow de ingesta separado: PDF -> troceado -> embeddings OpenAI `text-embedding-3-small`
+(**1536 dims**, no NVIDIA: sus modelos son asimetricos y el nodo nativo no puede enviarles
+`input_type`, ver ADR-0009) -> pgvector.
 
 **Hecho cuando:** una consulta de similitud devuelve los fragmentos correctos para
 "¿qué proyectos ha hecho?" y "¿sabe de RAG?".

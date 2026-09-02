@@ -11,3 +11,9 @@ dimensiones), ambos HTTP 200. Es gratuita y aísla la cuota sin infraestructura 
 Cuidado: un 404 "Not found for account" o un 410 en NVIDIA es por modelo, no por cuenta;
 el catálogo viejo murió pero la cuenta vive. Y el 120B necesita `max_tokens` holgado
 (~4000) con el razonamiento ACTIVO — apagarlo empeora la calidad.
+
+## Corregido despues
+
+Los **embeddings** ya no salen por NVIDIA: sus modelos son asimetricos y el nodo nativo de n8n
+no puede enviarles `input_type`, asi que la recuperacion no discriminaba. Ver ADR-0009.
+Esta decision sigue vigente para el **chat**, que es donde estaba el consumo de cuota real.
