@@ -1,3 +1,17 @@
-node_modules/
+# Secretos: NUNCA commitear
 .env
+.env.local
+*.key
+*.pem
+credentials*.json
+secrets/
+
+# Corpus con datos personales sin redactar
+corpus/raw/
+
+# Ruido
+node_modules/
+__pycache__/
 *.log
+.DS_Store
+Thumbs.db
