@@ -35,7 +35,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// Recibe { documento, contenido } y devuelve un item por seccion de nivel 2 (`## `).\n// La seccion viaja como metadato para que la recuperacion sepa de donde salio cada\n// fragmento, y para poder filtrar por ella mas adelante.\n//\n// Se lee del Webhook y no de $input porque el nodo anterior (la limpieza en Postgres)\n// corre con executeOnce y reemplaza los items por su propio resultado.\n\nconst body = $('Webhook Ingesta').first().json.body ?? {};\nconst documento = String(body.documento || '').trim();\nconst contenido = String(body.contenido || '');\n\nif (!documento) throw new Error('Falta `documento`: el nombre con el que se identifica el corpus.');\nif (contenido.trim().length === 0) throw new Error('Falta `contenido`: el texto del documento.');\n\n// Se corta en los encabezados de nivel 2 conservando el titulo de cada seccion.\nconst partes = contenido.split(/^##\\s+/m);\n\n// Lo que va antes del primer `## ` es la cabecera del documento; se conserva\n// como una seccion propia para no perder el contexto de que es este documento.\nconst secciones = [];\nconst cabecera = partes.shift();\nif (cabecera && cabecera.trim().length > 0) {\n  secciones.push({ seccion: 'Introduccion', texto: cabecera.trim() });\n}\nfor (const parte of partes) {\n  const salto = parte.indexOf('\\n');\n  const titulo = (salto === -1 ? parte : parte.slice(0, salto)).trim();\n  const cuerpo = (salto === -1 ? '' : parte.slice(salto + 1)).trim();\n  if (cuerpo.length === 0) continue;\n  // El titulo se repite dentro del texto: cada fragmento debe poder responder\n  // por si solo de que habla, aunque el troceado lo separe del encabezado.\n  secciones.push({ seccion: titulo, texto: titulo + '\\n\\n' + cuerpo });\n}\n\nif (secciones.length === 0) throw new Error('El documento no produjo ninguna seccion.');\n\nreturn secciones.map((s) => ({ json: { documento, seccion: s.seccion, texto: s.texto } }));"
+        "jsCode": "// Recibe { documento, contenido } y devuelve un item por SUBSECCION del markdown.\n//\n// Se corta por encabezados de nivel 2 (`## `) y tambien de nivel 3 (`### `). Cortar solo\n// por nivel 2 dejaba secciones largas que el troceador partia por caracteres a mitad de\n// tema: el fragmento con `pgvector` acababa dentro de otro que empezaba hablando de\n// orquestacion, y una pregunta sobre bases de datos vectoriales no lo alcanzaba.\n//\n// Se lee del Webhook y no de $input porque el nodo anterior (la limpieza en Postgres)\n// corre con executeOnce y reemplaza los items por su propio resultado.\n\nconst body = $('Webhook Ingesta').first().json.body ?? {};\nconst documento = String(body.documento || '').trim();\nconst contenido = String(body.contenido || '');\n\nif (!documento) throw new Error('Falta `documento`: el nombre con el que se identifica el corpus.');\nif (contenido.trim().length === 0) throw new Error('Falta `contenido`: el texto del documento.');\n\nconst piezas = [];\n\n// Nivel 2 primero.\nconst porNivel2 = contenido.split(/^##\\s+(?!#)/m);\nconst cabecera = porNivel2.shift();\nif (cabecera && cabecera.trim().length > 0) {\n  piezas.push({ seccion: 'Introduccion', subseccion: null, texto: cabecera.trim() });\n}\n\nfor (const bloque of porNivel2) {\n  const salto = bloque.indexOf('\\n');\n  const seccion = (salto === -1 ? bloque : bloque.slice(0, salto)).trim();\n  const cuerpo = (salto === -1 ? '' : bloque.slice(salto + 1));\n\n  // Nivel 3 dentro de la seccion.\n  const porNivel3 = cuerpo.split(/^###\\s+/m);\n  const intro = porNivel3.shift();\n\n  if (intro && intro.trim().length > 0) {\n    piezas.push({ seccion, subseccion: null, texto: seccion + '\\n\\n' + intro.trim() });\n  }\n\n  for (const sub of porNivel3) {\n    const s2 = sub.indexOf('\\n');\n    const subseccion = (s2 === -1 ? sub : sub.slice(0, s2)).trim();\n    const texto = (s2 === -1 ? '' : sub.slice(s2 + 1)).trim();\n    if (texto.length === 0) continue;\n    // Los titulos se repiten dentro del texto: un fragmento debe poder decir de que\n    // habla aunque el troceado lo separe de sus encabezados.\n    piezas.push({ seccion, subseccion, texto: seccion + ' — ' + subseccion + '\\n\\n' + texto });\n  }\n}\n\nif (piezas.length === 0) throw new Error('El documento no produjo ninguna seccion.');\n\nreturn piezas.map((p) => ({ json: { documento, seccion: p.seccion, subseccion: p.subseccion ?? '', texto: p.texto } }));"
       }
     },
     {
@@ -106,6 +106,10 @@
               {
                 "name": "seccion",
                 "value": "={{ $json.seccion }}"
+              },
+              {
+                "name": "subseccion",
+                "value": "={{ $json.subseccion }}"
               }
             ]
           }
@@ -174,6 +178,86 @@
         "height": 340,
         "color": 6,
         "content": "## BANO — Ingesta del corpus\n\nFlujo **aparte** del endpoint de conversacion, a proposito: se dispara a mano cuando el documento cambia,\nnunca en cada turno.\n\n    POST /webhook/bano/v1/ingesta      Authorization: Bearer <token de ingesta, distinto del publico>\n    { \"documento\": \"trayectoria\", \"contenido\": \"<el markdown completo>\" }\n\nEl documento viaja **en el cuerpo**, no por URL: se edita seguido y asi la ingesta no depende de un commit.\n\n### Por que aqui SI se usa la autenticacion nativa del Webhook\n\nDevuelve `403` con texto plano, que en el endpoint publico era inaceptable porque rompia el spec de\nOpen Responses (ADR-0005). Aqui no le importa a nadie, asi que se aprovecha y se ahorran tres nodos.\n\n### Reejecutar NO duplica\n\n`Borrar version anterior` limpia por `metadata->>'documento'` antes de insertar, asi que la tabla es\nsiempre un reflejo exacto del documento. Verificado: tres ingestas seguidas dejan 12 filas, no 36.\n\n### Trampas\n\n- La limpieza va **antes** de partir por seccion. Con `executeOnce`, el nodo Postgres colapsa todos los\n  items en uno solo y el cargador se queda sin texto (\"Document loader is not initialized\").\n- `Partir por seccion` lee del nodo Webhook, no de `$input`, por lo mismo.\n- El titulo de cada seccion se repite dentro de su texto: un fragmento debe poder decir de que habla\n  aunque el troceado lo separe del encabezado.\n- Cambiar de modelo de embeddings obliga a reindexar: 1536 dimensiones, fijas en la columna."
+      }
+    },
+    {
+      "id": "whb",
+      "name": "Webhook Buscar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        200,
+        700
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bano/v1/buscar",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YEwALJ8HDfzC3ufR",
+          "name": "BANO ingesta (header auth)"
+        }
+      },
+      "webhookId": "ecf7fca4-4347-47d0-a1d4-7d5ff7555df8"
+    },
+    {
+      "id": "pgb",
+      "name": "PGVector Buscar",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        420,
+        700
+      ],
+      "parameters": {
+        "mode": "load",
+        "tableName": "bano_corpus",
+        "prompt": "={{ $json.body.pregunta }}",
+        "topK": "={{ $json.body.top_k || 4 }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "V0RcqGuqWSuowyhM",
+          "name": "BANO Postgres (pgvector)"
+        }
+      }
+    },
+    {
+      "id": "embb",
+      "name": "Embeddings OpenAI (busqueda)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        900
+      ],
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "khGoYB8EqlxK66fW",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "fmt",
+      "name": "Formatear resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        700
+      ],
+      "parameters": {
+        "jsCode": "// Devuelve los fragmentos recuperados con su seccion y su distancia,\n// para que el gate pueda comprobar de donde salieron y con cuanta conviccion.\nconst r = $input.all().map((i) => i.json);\nreturn [{ json: {\n  pregunta: $('Webhook Buscar').first().json.body.pregunta,\n  resultados: r.map((x) => ({\n    seccion: x.document?.metadata?.seccion ?? null,\n    subseccion: x.document?.metadata?.subseccion || null,\n    documento: x.document?.metadata?.documento ?? null,\n    distancia: x.score,\n    // El fragmento va COMPLETO: recortarlo hacia un gate que busca palabras clave\n    // produce fallos falsos cuando la palabra queda mas alla del recorte.\n    texto: x.document?.pageContent ?? '',\n  })),\n} }];"
       }
     }
   ],
@@ -250,6 +334,39 @@
           {
             "node": "PGVector Insertar",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Buscar": {
+      "main": [
+        [
+          {
+            "node": "PGVector Buscar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PGVector Buscar": {
+      "main": [
+        [
+          {
+            "node": "Formatear resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI (busqueda)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "PGVector Buscar",
+            "type": "ai_embedding",
             "index": 0
           }
         ]

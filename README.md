@@ -66,13 +66,39 @@ tocar archivos:
 El gate incluye un caso de regresión con el body **literal** que envía la plataforma, para que
 ningún endurecimiento futuro la rompa en silencio.
 
+## Correr el gate de recuperacion
+
+Comprueba que preguntas reales traen los fragmentos correctos del corpus.
+
+    node tests/recuperacion.mjs
+
+Necesita `BANO_BASE_URL` y `BANO_INGESTA_TOKEN`. Mismos codigos de salida que el gate de
+conformidad. Exige que el contenido correcto aparezca en el **top-k**, no que gane un ranking
+exacto: con un corpus pequeno varias secciones responden legitimamente a la misma pregunta.
+
+Incluye preguntas en ingles contra el corpus en espanol, porque el cruce de idioma es un riesgo
+real que conviene vigilar.
+
+## Reindexar el corpus
+
+El documento viaja en el cuerpo, no por URL, porque se edita seguido:
+
+    POST <URL base>/ingesta
+    Authorization: Bearer <BANO_INGESTA_TOKEN>
+
+    {"documento": "trayectoria", "contenido": "<el markdown completo>"}
+
+Reejecutar **no duplica**: borra por documento antes de insertar.
+
 ## Estructura
 
     PLAN.md              las 7 fases y su criterio de "hecho"
     CONTEXT.md           glosario del dominio
     docs/adr/            decisiones de arquitectura y por qué
     workflows/bano.json  el flujo de n8n, exportado (sin credenciales)
-    tests/conformidad.mjs  el gate
+    corpus/              el documento de trayectoria que indexa el RAG
+    infra/pgvector.sh    levanta el Postgres con pgvector
+    tests/               los dos gates: conformidad y recuperacion
 
 ## Seguridad
 
