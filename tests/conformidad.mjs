@@ -29,7 +29,7 @@ function post(body, { token = TOKEN } = {}) {
     "-H", "Content-Type: application/json",
     "-w", "\n__HTTP__%{http_code}", "--data-binary", "@" + f];
   if (token) args.push("-H", "Authorization: Bearer " + token);
-  const raw = execFileSync("curl", args, { encoding: "utf8" });
+  const raw = curl(args);
   const i = raw.lastIndexOf("\n__HTTP__");
   const status = Number(raw.slice(i + 9).trim());
   let json = null;
@@ -37,13 +37,29 @@ function post(body, { token = TOKEN } = {}) {
   return { status, json, raw: raw.slice(0, i) };
 }
 
+// curl sale con codigo != 0 si no logra conectar, y execFileSync lo convierte en una
+// excepcion con traza de Node. Eso se lee como "el gate esta roto" cuando en realidad
+// el endpoint esta caido. Se traduce a un mensaje claro.
+function curl(args) {
+  try {
+    return execFileSync("curl", args, { encoding: "utf8" });
+  } catch (e) {
+    console.error("");
+    console.error("No se pudo conectar con " + BASE + "/responses");
+    console.error("curl salio con codigo " + e.status + ". Revisa que el endpoint este vivo,");
+    console.error("que el flujo de n8n este ACTIVO y que BANO_BASE_URL sea correcta.");
+    console.error("");
+    process.exit(2);
+  }
+}
+
 // Manda un body crudo tal cual, para probar JSON malformado.
 function postCrudo(texto) {
   const f = join(dir, "crudo.txt");
   writeFileSync(f, texto);
-  const raw = execFileSync("curl", ["-s", "-m", "60", "-X", "POST", BASE + "/responses",
+  const raw = curl(["-s", "-m", "60", "-X", "POST", BASE + "/responses",
     "-H", "Content-Type: application/json", "-H", "Authorization: Bearer " + TOKEN,
-    "-w", "|__HTTP__%{http_code}", "--data-binary", "@" + f], { encoding: "utf8" });
+    "-w", "|__HTTP__%{http_code}", "--data-binary", "@" + f]);
   const i = raw.lastIndexOf("|__HTTP__");
   let json = null;
   try { json = JSON.parse(raw.slice(0, i)); } catch {}
