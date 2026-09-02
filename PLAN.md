@@ -31,9 +31,15 @@ Nada que provisionar salvo un Postgres con pgvector (ADR-0001).
 Pasar el contrato antes de que haya agente detrás.
 
     Webhook (POST, path bano/v1/responses, responseMode: responseNode)
-      → Code "Validar"   (bearer + campos; acepta input string Y array)
-      → Code "Eco"       (un output item fijo, con id/type/status)
-      → Respond to Webhook
+      → Crypto      "Hashear bearer"     (SHA-256 de la cabecera Authorization)
+      → Data table  "Leer token"         (el hash esperado; nunca el token)
+      → Code        "Autorizar"          (compara hashes -> 200 / 401 / 500)
+      → Code        "Construir response" (arma el objeto del spec)
+      → Respond to Webhook               (codigo HTTP por expresion)
+
+La autenticacion nativa del nodo Webhook quedo descartada: rechaza antes de que corra
+ningun nodo y devuelve `403` con cuerpo de texto plano, no el error del spec. Es un bug
+abierto (n8n#26365) y actualizar n8n no lo resolveria. Ver ADR-0005.
 
 No hace falta tocar el proxy: la plataforma toma la URL base y le anade `/responses`,
 asi que con la base en `.../webhook/bano/v1` el path del webhook encaja tal cual.

@@ -88,6 +88,34 @@ console.log("#2 autenticacion por bearer");
   check("bearer correcto -> sigue conforme", (bueno.json || {}).object === "response");
 }
 
+// --- Ticket #3: `input` acepta string y array de items ---
+console.log("");
+console.log("#3 input como string y como array");
+{
+  const item = (texto) => ({
+    type: "message",
+    role: "user",
+    content: [{ type: "input_text", text: texto }],
+  });
+  const salida = (r) => (((r.json || {}).output || [])[0]?.content || [])[0]?.text || "";
+
+  const str = post({ model: "bano", input: "hola" });
+  const arr = post({ model: "bano", input: [item("hola")] });
+  check("array de un item -> 200", arr.status === 200, "http=" + arr.status);
+  check("string y array dan la misma salida", salida(str) === salida(arr),
+    "string=" + salida(str) + " array=" + salida(arr));
+
+  const varios = post({ model: "bano", input: [item("uno"), item("dos"), item("tres")] });
+  check("array de varios items -> 200", varios.status === 200, "http=" + varios.status);
+  check("lee todos los items, no solo el primero",
+    salida(varios).includes("uno") && salida(varios).includes("tres"),
+    "salida=" + salida(varios));
+
+  const vacio = post({ model: "bano", input: [] });
+  check("array vacio -> error de validacion", vacio.status >= 400 && vacio.status < 500,
+    "http=" + vacio.status);
+}
+
 console.log("");
 console.log(fallos === 0 ? "TODO VERDE" : fallos + " FALLO(S)");
 console.log("");
