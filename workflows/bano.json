@@ -24,11 +24,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
+        600,
         0
       ],
       "parameters": {
-        "jsCode": "// Construye un objeto `response` conforme a Open Responses.\n// Ticket #1: sin autenticacion y sin agente. Solo fija la forma de la salida.\n\n// El nodo corre una vez para todos los items; $input.first() es la forma\n// documentada de leer el turno. $json aqui es comportamiento no garantizado.\nconst body = $input.first().json.body ?? {};\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// ponytail: el ticket #1 solo exige `input` como string.\n// El array de items lo cubre el ticket #3.\nconst texto = typeof body.input === 'string' ? body.input : '';\n\nreturn [{\n  json: {\n    id: id('resp'),\n    object: 'response',\n    created_at: Math.floor(Date.now() / 1000),\n    status: 'completed',\n    model: body.model ?? 'bano',\n    output: [\n      {\n        id: id('msg'),\n        type: 'message',\n        status: 'completed',\n        role: 'assistant',\n        content: [\n          {\n            type: 'output_text',\n            text: 'eco: ' + texto,\n            annotations: [],\n          },\n        ],\n      },\n    ],\n    usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n  },\n}];"
+        "jsCode": "// Construye un objeto `response` conforme a Open Responses.\n// Envuelve la salida en {__status, cuerpo} para que `Responder` fije el codigo HTTP.\n\nconst previo = $input.first().json;\n\n// Si `Autorizar` ya decidio rechazar, se deja pasar su respuesta tal cual.\nif (previo.__status !== 200) return [{ json: previo }];\n\nconst body = previo.body ?? {};\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// ponytail: el ticket #1 solo exige `input` como string.\n// El array de items lo cubre el ticket #3.\nconst texto = typeof body.input === 'string' ? body.input : '';\n\nreturn [{\n  json: {\n    __status: 200,\n    cuerpo: {\n      id: id('resp'),\n      object: 'response',\n      created_at: Math.floor(Date.now() / 1000),\n      status: 'completed',\n      model: body.model ?? 'bano',\n      output: [\n        {\n          id: id('msg'),\n          type: 'message',\n          status: 'completed',\n          role: 'assistant',\n          content: [{ type: 'output_text', text: 'eco: ' + texto, annotations: [] }],\n        },\n      ],\n      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n    },\n  },\n}];"
       }
     },
     {
@@ -37,32 +37,91 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        440,
+        800,
         0
       ],
       "parameters": {
-        "respondWith": "firstIncomingItem",
+        "respondWith": "json",
+        "options": {
+          "responseCode": "={{ $json.__status }}"
+        },
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}"
+      }
+    },
+    {
+      "id": "leertoken",
+      "name": "Leer token",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YXK2B2lrc6q7XLHn"
+        },
         "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "autorizar",
+      "name": "Autorizar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Compara el bearer recibido contra el guardado en la data table `bano_secretos`.\n// El token NUNCA se escribe en el nodo: este JSON se publica en un repo publico.\n\nconst turno = $('Webhook').first().json;\n\nconst fila = $input.all().map((i) => i.json).find((r) => r.clave === 'bearer_token');\nconst esperado = fila ? String(fila.valor || '') : '';\n\nconst recibido = String(turno.headers?.authorization || '')\n  .replace(/^Bearer\\s+/i, '')\n  .trim();\n\nconst fallo = (status, code, message) => [{\n  json: {\n    __status: status,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param: 'Authorization' } },\n  },\n}];\n\n// Sin token guardado no se puede autenticar a nadie: culpa del servidor, no del cliente.\nif (!esperado) {\n  return [{\n    json: {\n      __status: 500,\n      cuerpo: {\n        error: {\n          type: 'server_error',\n          code: 'token_no_configurado',\n          message: 'El servidor no tiene configurado el token de acceso.',\n          param: null,\n        },\n      },\n    },\n  }];\n}\n\nif (!recibido) {\n  return fallo(401, 'missing_authorization', 'Falta la cabecera Authorization: Bearer <token>.');\n}\n\nif (recibido !== esperado) {\n  return fallo(401, 'invalid_api_key', 'El token proporcionado no es valido.');\n}\n\nreturn [{ json: { __status: 200, body: turno.body ?? {} } }];"
       }
     }
   ],
   "connections": {
-    "Webhook": {
+    "Construir response": {
       "main": [
         [
           {
-            "node": "Construir response",
+            "node": "Responder",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Construir response": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "Responder",
+            "node": "Leer token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer token": {
+      "main": [
+        [
+          {
+            "node": "Autorizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autorizar": {
+      "main": [
+        [
+          {
+            "node": "Construir response",
             "type": "main",
             "index": 0
           }
