@@ -61,7 +61,7 @@ Workflow de ingesta separado: PDF → troceado → embeddings NVIDIA (2048 dims)
     … → AI Agent (guardrails en el system prompt)
            ├ Chat Model: nvidia/nemotron-3-super-120b-a12b (max_tokens ~4000)
            ├ Vector Store Retriever sobre pgvector
-           └ Simple Memory, 10 mensajes, sessionKey = conversation_id
+           └ Simple Memory, contextWindowLength 10, sessionKey = conversation_id
       → Code "Formatear a Open Responses"
 
 Tabla `turnos` en el Postgres de BANO: `response_id | conversation_id | created_at | input | output |
@@ -72,6 +72,27 @@ latencia_ms | tokens`.
 lo unico que llega es el `id` del turno anterior, asi que la tabla es lo que traduce ese `id` a un
 `conversation_id` y permite a Simple Memory recuperar la conversacion. Sin ella, BANO no recuerda
 nada entre turnos. De paso es el log de observabilidad de la Fase 6.
+
+### Memoria: dos capas con duracion distinta
+
+| capa | donde vive | dura |
+|---|---|---|
+| cadena `response_id -> conversation_id` | Postgres, tabla `turnos` | 30 dias |
+| contexto del agente (10 interacciones) | memoria del proceso de n8n | hasta el proximo reinicio |
+
+`contextWindowLength: 10` cuenta **interacciones**, no mensajes sueltos: son los ultimos 10
+pares pregunta-respuesta. La ventana deslizante NO rompe la cadena de ids: una conversacion de
+50 turnos conserva sus 50 eslabones, el agente solo recuerda los ultimos 10.
+
+**Limitacion aceptada:** Simple Memory guarda en la memoria del proceso de n8n ("Stores in n8n
+memory, so no credentials required"), asi que un reinicio del contenedor la borra mientras la
+cadena de ids sobrevive. Sintoma: el `previous_response_id` resuelve bien pero el agente no
+recuerda nada, sin error ni aviso. Si eso llega a molestar, el arreglo es cambiar el nodo por
+**Postgres Chat Memory** contra la misma base de BANO: misma ventana, misma llave, pero
+duradera, y sin infraestructura nueva porque esa base ya existe por el ADR-0001.
+
+**Retencion:** 30 dias con limpieza automatica. Un `previous_response_id` mas viejo devuelve
+400: el identificador ya no existe.
 
 **Hecho cuando:** conversa con precisión sobre perfil, experiencia, habilidades y proyectos,
 en español e inglés, y encadena 3 turnos por `previous_response_id`.
