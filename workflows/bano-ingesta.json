@@ -1,0 +1,262 @@
+{
+  "name": "BANO — Ingesta del corpus",
+  "nodes": [
+    {
+      "id": "wh",
+      "name": "Webhook Ingesta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bano/v1/ingesta",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YEwALJ8HDfzC3ufR",
+          "name": "BANO ingesta (header auth)"
+        }
+      },
+      "webhookId": "bano-v1-ingesta"
+    },
+    {
+      "id": "part",
+      "name": "Partir por seccion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Recibe { documento, contenido } y devuelve un item por seccion de nivel 2 (`## `).\n// La seccion viaja como metadato para que la recuperacion sepa de donde salio cada\n// fragmento, y para poder filtrar por ella mas adelante.\n//\n// Se lee del Webhook y no de $input porque el nodo anterior (la limpieza en Postgres)\n// corre con executeOnce y reemplaza los items por su propio resultado.\n\nconst body = $('Webhook Ingesta').first().json.body ?? {};\nconst documento = String(body.documento || '').trim();\nconst contenido = String(body.contenido || '');\n\nif (!documento) throw new Error('Falta `documento`: el nombre con el que se identifica el corpus.');\nif (contenido.trim().length === 0) throw new Error('Falta `contenido`: el texto del documento.');\n\n// Se corta en los encabezados de nivel 2 conservando el titulo de cada seccion.\nconst partes = contenido.split(/^##\\s+/m);\n\n// Lo que va antes del primer `## ` es la cabecera del documento; se conserva\n// como una seccion propia para no perder el contexto de que es este documento.\nconst secciones = [];\nconst cabecera = partes.shift();\nif (cabecera && cabecera.trim().length > 0) {\n  secciones.push({ seccion: 'Introduccion', texto: cabecera.trim() });\n}\nfor (const parte of partes) {\n  const salto = parte.indexOf('\\n');\n  const titulo = (salto === -1 ? parte : parte.slice(0, salto)).trim();\n  const cuerpo = (salto === -1 ? '' : parte.slice(salto + 1)).trim();\n  if (cuerpo.length === 0) continue;\n  // El titulo se repite dentro del texto: cada fragmento debe poder responder\n  // por si solo de que habla, aunque el troceado lo separe del encabezado.\n  secciones.push({ seccion: titulo, texto: titulo + '\\n\\n' + cuerpo });\n}\n\nif (secciones.length === 0) throw new Error('El documento no produjo ninguna seccion.');\n\nreturn secciones.map((s) => ({ json: { documento, seccion: s.seccion, texto: s.texto } }));"
+      }
+    },
+    {
+      "id": "limpiar",
+      "name": "Borrar version anterior",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS bano_corpus (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), text text, metadata jsonb, embedding vector(1536));\nDELETE FROM bano_corpus WHERE metadata->>'documento' = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.body.documento }}"
+        },
+        "executeOnce": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "V0RcqGuqWSuowyhM",
+          "name": "BANO Postgres (pgvector)"
+        }
+      }
+    },
+    {
+      "id": "ins",
+      "name": "PGVector Insertar",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        0
+      ],
+      "parameters": {
+        "mode": "insert",
+        "tableName": "bano_corpus",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "V0RcqGuqWSuowyhM",
+          "name": "BANO Postgres (pgvector)"
+        }
+      }
+    },
+    {
+      "id": "loader",
+      "name": "Cargador",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        220
+      ],
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.texto }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "documento",
+                "value": "={{ $json.documento }}"
+              },
+              {
+                "name": "seccion",
+                "value": "={{ $json.seccion }}"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "split",
+      "name": "Troceador",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        860,
+        420
+      ],
+      "parameters": {
+        "chunkSize": 1000,
+        "chunkOverlap": 150,
+        "options": {}
+      }
+    },
+    {
+      "id": "emb",
+      "name": "Embeddings OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        220
+      ],
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "khGoYB8EqlxK66fW",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "resumen",
+      "name": "Resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Deja constancia de cuanto se indexo, que es un criterio del ticket.\nconst fragmentos = $input.all();\nconst porSeccion = {};\nfor (const f of fragmentos) {\n  const s = f.json?.metadata?.seccion ?? '(sin seccion)';\n  porSeccion[s] = (porSeccion[s] ?? 0) + 1;\n}\nreturn [{ json: {\n  ok: true,\n  documento: $('Partir por seccion').first().json.documento,\n  secciones: Object.keys(porSeccion).length,\n  fragmentos: fragmentos.length,\n  troceado: { chunkSize: 1000, chunkOverlap: 150 },\n  modelo_embeddings: 'text-embedding-3-small',\n  dimensiones: 1536,\n  por_seccion: porSeccion,\n} }];"
+      }
+    },
+    {
+      "id": "nota_ing",
+      "name": "Nota — ingesta",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ],
+      "parameters": {
+        "width": 1120,
+        "height": 340,
+        "color": 6,
+        "content": "## BANO — Ingesta del corpus\n\nFlujo **aparte** del endpoint de conversacion, a proposito: se dispara a mano cuando el documento cambia,\nnunca en cada turno.\n\n    POST /webhook/bano/v1/ingesta      Authorization: Bearer <token de ingesta, distinto del publico>\n    { \"documento\": \"trayectoria\", \"contenido\": \"<el markdown completo>\" }\n\nEl documento viaja **en el cuerpo**, no por URL: se edita seguido y asi la ingesta no depende de un commit.\n\n### Por que aqui SI se usa la autenticacion nativa del Webhook\n\nDevuelve `403` con texto plano, que en el endpoint publico era inaceptable porque rompia el spec de\nOpen Responses (ADR-0005). Aqui no le importa a nadie, asi que se aprovecha y se ahorran tres nodos.\n\n### Reejecutar NO duplica\n\n`Borrar version anterior` limpia por `metadata->>'documento'` antes de insertar, asi que la tabla es\nsiempre un reflejo exacto del documento. Verificado: tres ingestas seguidas dejan 12 filas, no 36.\n\n### Trampas\n\n- La limpieza va **antes** de partir por seccion. Con `executeOnce`, el nodo Postgres colapsa todos los\n  items en uno solo y el cargador se queda sin texto (\"Document loader is not initialized\").\n- `Partir por seccion` lee del nodo Webhook, no de `$input`, por lo mismo.\n- El titulo de cada seccion se repite dentro de su texto: un fragmento debe poder decir de que habla\n  aunque el troceado lo separe del encabezado.\n- Cambiar de modelo de embeddings obliga a reindexar: 1536 dimensiones, fijas en la columna."
+      }
+    }
+  ],
+  "connections": {
+    "PGVector Insertar": {
+      "main": [
+        [
+          {
+            "node": "Resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargador": {
+      "ai_document": [
+        [
+          {
+            "node": "PGVector Insertar",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Troceador": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Cargador",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "PGVector Insertar",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Ingesta": {
+      "main": [
+        [
+          {
+            "node": "Borrar version anterior",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Borrar version anterior": {
+      "main": [
+        [
+          {
+            "node": "Partir por seccion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Partir por seccion": {
+      "main": [
+        [
+          {
+            "node": "PGVector Insertar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
