@@ -1,20 +1,45 @@
-# El bearer vive en una Data Table, no en una credencial de n8n
+# El bearer se verifica por hash en una Data Table, no con la autenticación nativa del webhook
 
-El ticket #2 pedía dos cosas incompatibles: un `401` con la forma de error del spec
-(`{type, code, message, param}`) y que el token viniera de una credencial de n8n.
+El ticket #2 pedía dos cosas que en n8n son incompatibles: un `401` con la forma de error del
+spec (`{type, code, message, param}`) y que el token no viviera escrito en el flujo.
 
-La autenticación integrada del nodo Webhook rechaza **antes** de que corra ningún nodo,
-así que devuelve su propio cuerpo (`403` con `{"code":403,"message":"Authorization data is
-wrong!"}`) y no hay forma de darle la forma del spec. O credencial, o error conforme.
+## Por qué no la autenticación nativa del webhook
 
-Gana el error conforme: la compatibilidad con Open Responses es el objetivo del proyecto,
-mientras que el criterio de la credencial existía para que el token no acabara publicado.
-El token vive en la data table `bano_secretos` (fila `clave=bearer_token`) y un nodo la lee
-por turno, así que no aparece ni en el nodo ni en `workflows/bano.json`, que es público.
+Se probó en un flujo desechable con una credencial `httpHeaderAuth` real. Lo que devuelve:
+
+    HTTP/1.1 403 Forbidden
+    Www-Authenticate: Basic realm="Webhook"
+
+    Authorization data is wrong!
+
+Tres problemas, no uno: es `403` en vez de `401`; el cuerpo es **texto plano**, ni siquiera
+JSON; y anuncia `Basic` aunque la autenticación configurada sea Header Auth. El rechazo ocurre
+antes de que corra ningún nodo, así que no hay forma de darle otra forma.
+
+No es cuestión de versión. El `403` es un bug abierto en n8n (issue #26365, señalado como
+violación del RFC 7235), y aunque lo corrigieran, el cuerpo seguiría siendo texto plano. El
+nodo no expone ninguna opción para personalizar la respuesta de rechazo.
 
 También se descartó la variable de entorno: `$env` llega vacío al Code node porque el task
-runner externo no hereda las variables del contenedor, y arreglarlo obligaría a reiniciar
-n8n, que atiende un bot de ventas en producción.
+runner externo no hereda las variables del contenedor.
 
-Consecuencia aceptada: una data table guarda el valor en texto plano, no cifrado como una
-credencial. Cuando exista el Postgres de BANO (ADR-0001), el token puede mudarse ahí.
+## Qué se hace en su lugar
+
+La data table `bano_secretos` guarda el **SHA-256** del token (fila `clave =
+bearer_token_sha256`), nunca el token. Un nodo `Crypto` hashea el bearer entrante y `Autorizar`
+compara hashes. El token en claro no existe en ninguna parte de n8n, y `workflows/bano.json`,
+que es público, sólo referencia la tabla.
+
+SHA-256 sin sal ni factor de costo es correcto **aquí**: el token son 256 bits de
+`openssl rand`, no una contraseña humana. bcrypt y argon2 existen para resistir ataques de
+diccionario contra secretos de baja entropía; contra 256 bits aleatorios no aportan nada.
+
+No se implementa comparación en tiempo constante: el sandbox del task runner no expone
+`crypto.timingSafeEqual`, y un ataque de temporización contra un hash a través de internet,
+con el jitter de red de por medio, no es una amenaza realista.
+
+## Consecuencias
+
+- Rotar el token es actualizar una fila con el nuevo hash. Sin reiniciar nada.
+- Si la fila desaparece, el flujo responde `500 token_no_configurado`: falla cerrado.
+- Se paga una lectura de data table por turno.

@@ -24,7 +24,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
+        720,
         0
       ],
       "parameters": {
@@ -37,7 +37,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        800,
+        900,
         0
       ],
       "parameters": {
@@ -54,7 +54,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        200,
+        360,
         0
       ],
       "parameters": {
@@ -75,11 +75,29 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        540,
         0
       ],
       "parameters": {
-        "jsCode": "// Compara el bearer recibido contra el guardado en la data table `bano_secretos`.\n// El token NUNCA se escribe en el nodo: este JSON se publica en un repo publico.\n\nconst turno = $('Webhook').first().json;\n\nconst fila = $input.all().map((i) => i.json).find((r) => r.clave === 'bearer_token');\nconst esperado = fila ? String(fila.valor || '') : '';\n\nconst recibido = String(turno.headers?.authorization || '')\n  .replace(/^Bearer\\s+/i, '')\n  .trim();\n\nconst fallo = (status, code, message) => [{\n  json: {\n    __status: status,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param: 'Authorization' } },\n  },\n}];\n\n// Sin token guardado no se puede autenticar a nadie: culpa del servidor, no del cliente.\nif (!esperado) {\n  return [{\n    json: {\n      __status: 500,\n      cuerpo: {\n        error: {\n          type: 'server_error',\n          code: 'token_no_configurado',\n          message: 'El servidor no tiene configurado el token de acceso.',\n          param: null,\n        },\n      },\n    },\n  }];\n}\n\nif (!recibido) {\n  return fallo(401, 'missing_authorization', 'Falta la cabecera Authorization: Bearer <token>.');\n}\n\nif (recibido !== esperado) {\n  return fallo(401, 'invalid_api_key', 'El token proporcionado no es valido.');\n}\n\nreturn [{ json: { __status: 200, body: turno.body ?? {} } }];"
+        "jsCode": "// Compara el SHA-256 del bearer recibido contra el guardado en `bano_secretos`.\n// La tabla NO guarda el token, solo su hash: quien la lea no puede autenticarse.\n// SHA-256 pelado basta porque el token son 256 bits aleatorios, no una contrasena\n// humana: no hay diccionario que lo contenga y la fuerza bruta es inviable.\n\nconst turno = $('Webhook').first().json;\nconst recibidoHash = $('Hashear bearer').first().json.bearer_sha256;\n\nconst fila = $input.all().map((i) => i.json).find((r) => r.clave === 'bearer_token_sha256');\nconst esperadoHash = fila ? String(fila.valor || '') : '';\n\n// Se mira la cabecera cruda, no el hash: hashear cadena vacia tambien da un hash.\nconst traeCabecera = String(turno.headers?.authorization || '').trim().length > 0;\n\nconst fallo = (status, code, message) => [{\n  json: {\n    __status: status,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param: 'Authorization' } },\n  },\n}];\n\n// Sin hash guardado no se puede autenticar a nadie: culpa del servidor, no del cliente.\nif (!esperadoHash) {\n  return [{\n    json: {\n      __status: 500,\n      cuerpo: {\n        error: {\n          type: 'server_error',\n          code: 'token_no_configurado',\n          message: 'El servidor no tiene configurado el token de acceso.',\n          param: null,\n        },\n      },\n    },\n  }];\n}\n\nif (!traeCabecera) {\n  return fallo(401, 'missing_authorization', 'Falta la cabecera Authorization: Bearer <token>.');\n}\n\nif (recibidoHash !== esperadoHash) {\n  return fallo(401, 'invalid_api_key', 'El token proporcionado no es valido.');\n}\n\nreturn [{ json: { __status: 200, body: turno.body ?? {} } }];"
+      }
+    },
+    {
+      "id": "hashear",
+      "name": "Hashear bearer",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        180,
+        0
+      ],
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "binaryData": false,
+        "value": "={{ String($json.headers.authorization || '').replace(/^Bearer\\s+/i, '').trim() }}",
+        "dataPropertyName": "bearer_sha256",
+        "encoding": "hex"
       }
     }
   ],
@@ -89,17 +107,6 @@
         [
           {
             "node": "Responder",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Leer token",
             "type": "main",
             "index": 0
           }
@@ -122,6 +129,28 @@
         [
           {
             "node": "Construir response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Hashear bearer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hashear bearer": {
+      "main": [
+        [
+          {
+            "node": "Leer token",
             "type": "main",
             "index": 0
           }
