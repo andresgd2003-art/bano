@@ -13,7 +13,7 @@ infraestructura ya existe) y el streaming subió de "opcional al final" a requis
 | Content parts | entrada `input_text`/`input_image`/`input_file` · salida `output_text`/`summary_text` |
 | Response | `id`, `object:"response"`, `output[]`, `usage` |
 | Streaming | `response.in_progress` → `output_item.added` → `content_part.added` → `output_text.delta` → `.done` → `response.completed` → `[DONE]`, con `sequence_number` en cada evento |
-| Conversación | `previous_response_id` → `prev.input + prev.output + input` |
+| Conversación | `previous_response_id` → `prev.input + prev.output + input`. **La plataforma usa esta via, no reenvia el historial**, asi que sin ella BANO no tiene memoria |
 | Errores | `{type, code, message, param}` |
 
 Otros endpoints del spec: `POST /v1/responses/compact` y un WebSocket, ambos opcionales.
@@ -65,7 +65,13 @@ Workflow de ingesta separado: PDF → troceado → embeddings NVIDIA (2048 dims)
       → Code "Formatear a Open Responses"
 
 Tabla `turnos` en el Postgres de BANO: `response_id | conversation_id | created_at | input | output |
-latencia_ms | tokens`. Sirve de mapa para `previous_response_id` y de log de observabilidad.
+latencia_ms | tokens`.
+
+**Esta tabla no es opcional.** El formulario de la plataforma solo ofrece dos modos de estado,
+*sin estado* y *previous_response_id*; no existe reenvio del historial. Con `previous_response_id`,
+lo unico que llega es el `id` del turno anterior, asi que la tabla es lo que traduce ese `id` a un
+`conversation_id` y permite a Simple Memory recuperar la conversacion. Sin ella, BANO no recuerda
+nada entre turnos. De paso es el log de observabilidad de la Fase 6.
 
 **Hecho cuando:** conversa con precisión sobre perfil, experiencia, habilidades y proyectos,
 en español e inglés, y encadena 3 turnos por `previous_response_id`.
@@ -100,6 +106,11 @@ para que BANO hable de sí mismo. README con qué del spec se cubre y qué no.
 
 Entrada de imágenes (`meta/llama-3.2-90b-vision-instruct`) y de archivos. Efímeros: nunca
 entran al corpus (ADR-0003). Hasta aquí `defaultInputModes` es sólo `text/plain`.
+
+Entrega de archivos: **URL, no base64**. Base64 infla el archivo un 33% y obliga a n8n a
+parsearlo entero en memoria, en una caja de un core con ~2.3 GB libres compartidos con SATS
+y el bot de ventas. Con URL la peticion queda pequena y BANO descarga solo lo que necesita.
+Riesgo asumido: el enlace puede ser temporal o exigir autenticacion.
 
 ---
 

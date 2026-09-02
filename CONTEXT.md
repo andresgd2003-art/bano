@@ -39,9 +39,11 @@ Identificador de un turno individual, devuelto como `id` en la respuesta. Un cli
 reanudar desde él con `previous_response_id`. Muchos `response_id` por cada `conversation_id`.
 _Avoid_: message_id
 
-**Transcript**:
-El historial completo que la plataforma reenvía dentro de `input` en cada turno. Es la fuente
-de verdad del contexto; la memoria de BANO no lo sustituye.
+**Cadena de respuestas**:
+La secuencia de turnos enlazados por `previous_response_id`. La plataforma no reenvía el
+historial: manda el `response_id` del turno anterior y BANO reconstruye el contexto desde
+su propia memoria. Sin esa cadena, cada turno sería independiente.
+_Avoid_: transcript, historial reenviado
 
 **Guardrail**:
 Regla de comportamiento que BANO no puede desactivar, venga de donde venga la petición.
