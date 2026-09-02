@@ -35,7 +35,8 @@ Pasar el contrato antes de que haya agente detrás.
       → Code "Eco"       (un output item fijo, con id/type/status)
       → Respond to Webhook
 
-Traefik necesita un `replacePath` para que la URL pública sea `/bano/v1/responses`.
+No hace falta tocar el proxy: la plataforma toma la URL base y le anade `/responses`,
+asi que con la base en `.../webhook/bano/v1` el path del webhook encaja tal cual.
 
 **Hecho cuando:** un `curl` con `{"model":"bano","input":"hola"}` devuelve un objeto `response`
 válido, y otro con `input` como array devuelve lo mismo.
