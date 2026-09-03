@@ -17,3 +17,14 @@ el catálogo viejo murió pero la cuenta vive. Y el 120B necesita `max_tokens` h
 Los **embeddings** ya no salen por NVIDIA: sus modelos son asimetricos y el nodo nativo de n8n
 no puede enviarles `input_type`, asi que la recuperacion no discriminaba. Ver ADR-0009.
 Esta decision sigue vigente para el **chat**, que es donde estaba el consumo de cuota real.
+
+## Revertido para el chat (2026-09-03)
+
+Por decision del autor, el modelo del agente pasa a **`gpt-5-mini`** con la credencial de
+OpenAI que ya vive en n8n. Con ello vuelve el riesgo que este ADR evitaba: la cuota
+compartida con el bot de ventas ahora sirve tambien las rafagas de conversacion de BANO,
+que es el patron que produce los 429. Mitigacion acordada: no correr baterias de estres en
+horario de ventas.
+
+NVIDIA sigue siendo la opcion medida y gratuita, y el simulador de evaluacion de la fase 5
+la usara para no doblar el consumo de la credencial compartida.

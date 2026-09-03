@@ -12,8 +12,9 @@ Andrés Gallegos Díaz, expuesto como un endpoint compatible con
 
 ## Estado
 
-**Fase 1 completa.** El endpoint es conforme al spec y está autenticado, pero todavía no
-piensa: devuelve un eco. El agente, el RAG y la memoria llegan en las fases 2 y 3.
+**Fases 1 y 2 completas; fase 3 en curso.** El endpoint es conforme, esta autenticado y
+responde con un agente que consulta el corpus de la trayectoria. Falta la memoria entre
+turnos, el streaming y los guardrails.
 Ver [PLAN.md](./PLAN.md) para las 7 fases y su criterio de "hecho".
 
 Verificado de punta a punta contra la plataforma cliente real, no sólo con `curl`.
@@ -25,7 +26,7 @@ Verificado de punta a punta contra la plataforma cliente real, no sólo con `cur
 | `POST /responses` con `Authorization: Bearer` | sí |
 | `input` como string **y** como array de items | sí |
 | `output` con `id`, `type`, `status` y content parts `output_text` | sí |
-| `usage` | sí, en cero mientras no haya modelo |
+| `usage` | presente, pero en cero: ver desviaciones |
 | Errores `{type, code, message, param}` | sí, con `param` señalando el campo culpable |
 | `previous_response_id` | fase 3 |
 | Streaming SSE | fase 4 |
@@ -40,6 +41,10 @@ envía. Exigirlo rompería el endpoint contra el único cliente que importa. Ver
 
 **Un JSON malformado devuelve `422` con el cuerpo de n8n**, no un error con la forma del spec.
 n8n lo rechaza antes de que el flujo arranque; interceptarlo exigiría un proxy delante.
+
+**`usage` va en ceros.** El nodo AI Agent de n8n no expone el conteo de tokens al flujo: su
+salida trae solo el texto y la metadata de uso se queda en la ejecucion. Estimarlo por
+caracteres seria una mentira disfrazada de dato medido, asi que se deja en cero y se dice.
 
 **`instructions`, `model` y `temperature` entrantes se ignoran** en silencio. El
 comportamiento lo fija el flujo, no el cliente. Ver
@@ -96,8 +101,9 @@ Reejecutar **no duplica**: borra por documento antes de insertar.
     CONTEXT.md           glosario del dominio
     docs/adr/            decisiones de arquitectura y por qué
     workflows/bano.json  el flujo de n8n, exportado (sin credenciales)
+    prompts/sistema.md   el prompt del agente, versionado
     corpus/              el documento de trayectoria que indexa el RAG
-    infra/pgvector.sh    levanta el Postgres con pgvector
+    infra/                provisiona la base y despliega el prompt
     tests/               los dos gates: conformidad y recuperacion
 
 ## Seguridad

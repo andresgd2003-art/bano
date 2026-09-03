@@ -2,6 +2,12 @@
   "name": "BANO — Open Responses endpoint",
   "nodes": [
     {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bano/v1/responses",
+        "responseMode": "responseNode",
+        "options": {}
+      },
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
@@ -10,157 +16,269 @@
         0,
         0
       ],
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "bano/v1/responses",
-        "responseMode": "responseNode",
-        "options": {}
-      },
       "webhookId": "bano-v1-responses"
     },
     {
+      "parameters": {
+        "jsCode": "// Valida la peticion y extrae la pregunta. Corre ANTES del agente a proposito:\n// no se gasta una llamada al modelo en una peticion que ya sabemos que es invalida.\n//\n// Contrato hacia adelante: { __status, cuerpo } si hay que rechazar,\n// { __status: 200, pregunta } si hay que seguir.\n\nconst previo = $input.first().json;\n\n// Si `Autorizar` ya decidio rechazar, se deja pasar su respuesta tal cual.\nif (previo.__status !== 200) return [{ json: previo }];\n\nconst body = previo.body ?? {};\n\nconst error = (code, message, param) => [{\n  json: {\n    __status: 400,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param } },\n  },\n}];\n\n// `model` NO se exige, aunque el spec lo declare obligatorio: la plataforma real\n// manda {input, stream, store} sin ese campo (ejecucion 68798). Exigirlo romperia\n// el endpoint en el primer mensaje del evaluador.\n//\n// Tampoco se exigen `id` ni `status` en los items de ENTRADA, por lo mismo:\n// la plataforma manda solo {role, type, content}.\n\nif (body.input === undefined || body.input === null) {\n  return error('missing_required_parameter', 'Falta el campo `input`.', 'input');\n}\n\nif (typeof body.input !== 'string' && !Array.isArray(body.input)) {\n  return error('invalid_type', 'El campo `input` debe ser un string o un array de items.', 'input');\n}\n\nif (Array.isArray(body.input)) {\n  if (body.input.length === 0) {\n    return error('empty_input', 'El campo `input` no puede ser un array vacio.', 'input');\n  }\n  for (let i = 0; i < body.input.length; i++) {\n    const item = body.input[i];\n    if (!item || typeof item !== 'object') {\n      return error('invalid_item', 'El item ' + i + ' de `input` no es un objeto.', 'input[' + i + ']');\n    }\n    if (typeof item.type !== 'string' || item.type.length === 0) {\n      return error('invalid_item', 'El item ' + i + ' de `input` no declara `type`.', 'input[' + i + '].type');\n    }\n  }\n}\n\n// De un item de tipo message se concatena el texto de sus content parts `input_text`.\nfunction leerInput(input) {\n  if (typeof input === 'string') return input;\n  const textos = [];\n  for (const item of input) {\n    if (typeof item.content === 'string') { textos.push(item.content); continue; }\n    if (!Array.isArray(item.content)) continue;\n    for (const parte of item.content) {\n      if (parte && parte.type === 'input_text' && typeof parte.text === 'string') {\n        textos.push(parte.text);\n      }\n    }\n  }\n  return textos.join('\\n');\n}\n\nconst pregunta = leerInput(body.input);\n\nif (String(pregunta).trim().length === 0) {\n  return error('empty_input', 'El campo `input` no contiene texto.', 'input');\n}\n\nreturn [{ json: { __status: 200, pregunta } }];"
+      },
       "id": "construir",
-      "name": "Construir response",
+      "name": "Validar entrada",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         720,
         0
-      ],
-      "parameters": {
-        "jsCode": "// Construye un objeto `response` conforme a Open Responses.\n// Envuelve la salida en {__status, cuerpo} para que `Responder` fije el codigo HTTP.\n\nconst previo = $input.first().json;\n\n// Si `Autorizar` ya decidio rechazar, se deja pasar su respuesta tal cual.\nif (previo.__status !== 200) return [{ json: previo }];\n\nconst body = previo.body ?? {};\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\nconst error = (code, message, param) => [{\n  json: {\n    __status: 400,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param } },\n  },\n}];\n\n// --- Validacion ---\n//\n// `model` NO se exige, aunque el spec lo declare obligatorio: la plataforma real\n// manda {input, stream, store} sin ese campo (ejecucion 68798). Exigirlo romperia\n// el endpoint en el primer mensaje del evaluador.\n//\n// Tampoco se exigen `id` ni `status` en los items de ENTRADA, por lo mismo:\n// la plataforma manda solo {role, type, content}.\n\nif (body.input === undefined || body.input === null) {\n  return error('missing_required_parameter', 'Falta el campo `input`.', 'input');\n}\n\nif (typeof body.input !== 'string' && !Array.isArray(body.input)) {\n  return error('invalid_type', 'El campo `input` debe ser un string o un array de items.', 'input');\n}\n\nif (Array.isArray(body.input)) {\n  if (body.input.length === 0) {\n    return error('empty_input', 'El campo `input` no puede ser un array vacio.', 'input');\n  }\n  for (let i = 0; i < body.input.length; i++) {\n    const item = body.input[i];\n    if (!item || typeof item !== 'object') {\n      return error('invalid_item', 'El item ' + i + ' de `input` no es un objeto.', 'input[' + i + ']');\n    }\n    if (typeof item.type !== 'string' || item.type.length === 0) {\n      return error('invalid_item', 'El item ' + i + ' de `input` no declara `type`.', 'input[' + i + '].type');\n    }\n  }\n}\n\n// --- Lectura del input ---\n// De un item de tipo message se concatena el texto de sus content parts `input_text`.\nfunction leerInput(input) {\n  if (typeof input === 'string') return input;\n\n  const textos = [];\n  for (const item of input) {\n    if (typeof item.content === 'string') { textos.push(item.content); continue; }\n    if (!Array.isArray(item.content)) continue;\n    for (const parte of item.content) {\n      if (parte && parte.type === 'input_text' && typeof parte.text === 'string') {\n        textos.push(parte.text);\n      }\n    }\n  }\n  return textos.join('\\n');\n}\n\nconst texto = leerInput(body.input);\n\nreturn [{\n  json: {\n    __status: 200,\n    cuerpo: {\n      id: id('resp'),\n      object: 'response',\n      created_at: Math.floor(Date.now() / 1000),\n      status: 'completed',\n      // El modelo lo fija el flujo, no el cliente: un `model` entrante se IGNORA\n      // (ADR-0002). Devolver el que mandaron seria mentir sobre quien respondio.\n      // En la fase 3 este valor pasa a ser el id real del modelo del agente.\n      model: 'bano',\n      output: [\n        {\n          id: id('msg'),\n          type: 'message',\n          status: 'completed',\n          role: 'assistant',\n          content: [{ type: 'output_text', text: 'eco: ' + texto, annotations: [] }],\n        },\n      ],\n      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n    },\n  },\n}];"
-      }
+      ]
     },
     {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.cuerpo) }}",
+        "options": {
+          "responseCode": "={{ $json.__status }}"
+        }
+      },
       "id": "responder",
       "name": "Responder",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        900,
+        1540,
         0
-      ],
-      "parameters": {
-        "respondWith": "json",
-        "options": {
-          "responseCode": "={{ $json.__status }}"
-        },
-        "responseBody": "={{ JSON.stringify($json.cuerpo) }}"
-      }
+      ]
     },
     {
-      "id": "leertoken",
-      "name": "Leer token",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        360,
-        0
-      ],
       "parameters": {
-        "resource": "row",
         "operation": "get",
         "dataTableId": {
           "__rl": true,
           "mode": "id",
           "value": "YXK2B2lrc6q7XLHn"
-        },
-        "options": {}
+        }
       },
+      "id": "leertoken",
+      "name": "Leer token",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        368,
+        0
+      ],
       "alwaysOutputData": true
     },
     {
+      "parameters": {
+        "jsCode": "// Compara el SHA-256 del bearer recibido contra el guardado en `bano_secretos`.\n// La tabla NO guarda el token, solo su hash: quien la lea no puede autenticarse.\n// SHA-256 pelado basta porque el token son 256 bits aleatorios, no una contrasena\n// humana: no hay diccionario que lo contenga y la fuerza bruta es inviable.\n\nconst turno = $('Webhook').first().json;\nconst recibidoHash = $('Hashear bearer').first().json.bearer_sha256;\n\nconst fila = $input.all().map((i) => i.json).find((r) => r.clave === 'bearer_token_sha256');\nconst esperadoHash = fila ? String(fila.valor || '') : '';\n\n// Se mira la cabecera cruda, no el hash: hashear cadena vacia tambien da un hash.\nconst traeCabecera = String(turno.headers?.authorization || '').trim().length > 0;\n\nconst fallo = (status, code, message) => [{\n  json: {\n    __status: status,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param: 'Authorization' } },\n  },\n}];\n\n// Sin hash guardado no se puede autenticar a nadie: culpa del servidor, no del cliente.\nif (!esperadoHash) {\n  return [{\n    json: {\n      __status: 500,\n      cuerpo: {\n        error: {\n          type: 'server_error',\n          code: 'token_no_configurado',\n          message: 'El servidor no tiene configurado el token de acceso.',\n          param: null,\n        },\n      },\n    },\n  }];\n}\n\nif (!traeCabecera) {\n  return fallo(401, 'missing_authorization', 'Falta la cabecera Authorization: Bearer <token>.');\n}\n\nif (recibidoHash !== esperadoHash) {\n  return fallo(401, 'invalid_api_key', 'El token proporcionado no es valido.');\n}\n\nreturn [{ json: { __status: 200, body: turno.body ?? {} } }];"
+      },
       "id": "autorizar",
       "name": "Autorizar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        540,
+        544,
         0
-      ],
-      "parameters": {
-        "jsCode": "// Compara el SHA-256 del bearer recibido contra el guardado en `bano_secretos`.\n// La tabla NO guarda el token, solo su hash: quien la lea no puede autenticarse.\n// SHA-256 pelado basta porque el token son 256 bits aleatorios, no una contrasena\n// humana: no hay diccionario que lo contenga y la fuerza bruta es inviable.\n\nconst turno = $('Webhook').first().json;\nconst recibidoHash = $('Hashear bearer').first().json.bearer_sha256;\n\nconst fila = $input.all().map((i) => i.json).find((r) => r.clave === 'bearer_token_sha256');\nconst esperadoHash = fila ? String(fila.valor || '') : '';\n\n// Se mira la cabecera cruda, no el hash: hashear cadena vacia tambien da un hash.\nconst traeCabecera = String(turno.headers?.authorization || '').trim().length > 0;\n\nconst fallo = (status, code, message) => [{\n  json: {\n    __status: status,\n    cuerpo: { error: { type: 'invalid_request_error', code, message, param: 'Authorization' } },\n  },\n}];\n\n// Sin hash guardado no se puede autenticar a nadie: culpa del servidor, no del cliente.\nif (!esperadoHash) {\n  return [{\n    json: {\n      __status: 500,\n      cuerpo: {\n        error: {\n          type: 'server_error',\n          code: 'token_no_configurado',\n          message: 'El servidor no tiene configurado el token de acceso.',\n          param: null,\n        },\n      },\n    },\n  }];\n}\n\nif (!traeCabecera) {\n  return fallo(401, 'missing_authorization', 'Falta la cabecera Authorization: Bearer <token>.');\n}\n\nif (recibidoHash !== esperadoHash) {\n  return fallo(401, 'invalid_api_key', 'El token proporcionado no es valido.');\n}\n\nreturn [{ json: { __status: 200, body: turno.body ?? {} } }];"
-      }
+      ]
     },
     {
+      "parameters": {
+        "value": "={{ String($json.headers.authorization || '').replace(/^Bearer\\s+/i, '').trim() }}",
+        "dataPropertyName": "bearer_sha256"
+      },
       "id": "hashear",
       "name": "Hashear bearer",
       "type": "n8n-nodes-base.crypto",
       "typeVersion": 2,
       "position": [
-        180,
+        192,
         0
-      ],
-      "parameters": {
-        "action": "hash",
-        "type": "SHA256",
-        "binaryData": false,
-        "value": "={{ String($json.headers.authorization || '').replace(/^Bearer\\s+/i, '').trim() }}",
-        "dataPropertyName": "bearer_sha256",
-        "encoding": "hex"
-      }
+      ]
     },
     {
+      "parameters": {
+        "content": "## BANO — endpoint compatible con Open Responses\n\nExpone `POST /webhook/bano/v1/responses` siguiendo el spec de https://www.openresponses.org\nLa plataforma cliente toma la **URL base** (`.../webhook/bano/v1`) y le anade `/responses`, por eso el path\ntermina asi y **no hace falta tocar Traefik**.\n\n**Fase 1 (actual):** el endpoint es conforme pero todavia NO piensa: devuelve un eco.\nEl agente, el RAG y la memoria llegan en las fases 2 y 3.\n\n**No editar a mano sin actualizar el repo:** https://github.com/andresgd2003-art/bano\nEl flujo esta versionado en `workflows/bano.json` y `tests/conformidad.mjs` valida el spec (23 casos).\nSi cambias algo aqui, corre el gate antes de darlo por bueno.",
+        "height": 304,
+        "width": 812,
+        "color": 4
+      },
       "id": "nota_general",
       "name": "Nota — que es esto",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -60,
+        -64,
         -400
-      ],
-      "parameters": {
-        "width": 1180,
-        "height": 240,
-        "color": 4,
-        "content": "## BANO — endpoint compatible con Open Responses\n\nExpone `POST /webhook/bano/v1/responses` siguiendo el spec de https://www.openresponses.org\nLa plataforma cliente toma la **URL base** (`.../webhook/bano/v1`) y le anade `/responses`, por eso el path\ntermina asi y **no hace falta tocar Traefik**.\n\n**Fase 1 (actual):** el endpoint es conforme pero todavia NO piensa: devuelve un eco.\nEl agente, el RAG y la memoria llegan en las fases 2 y 3.\n\n**No editar a mano sin actualizar el repo:** https://github.com/andresgd2003-art/bano\nEl flujo esta versionado en `workflows/bano.json` y `tests/conformidad.mjs` valida el spec (23 casos).\nSi cambias algo aqui, corre el gate antes de darlo por bueno."
-      }
+      ]
     },
     {
+      "parameters": {
+        "content": "## Autenticacion por hash\n\n`Hashear bearer` saca el SHA-256 de la cabecera `Authorization`.\n`Leer token` trae de la data table **bano_secretos** la fila\n`bearer_token_sha256`. `Autorizar` compara **hash contra hash**.\n\n**La tabla NO guarda el token, solo su hash.** Quien la lea no puede\nautenticarse. Rotar el token = actualizar esa fila con el hash nuevo,\nsin reiniciar nada.\n\n### Por que no la autenticacion nativa del Webhook\n\nProbada y medida: devuelve `403` (no 401) con cuerpo de **texto plano**\n(`Authorization data is wrong!`) y cabecera `Www-Authenticate: Basic`.\nRechaza antes de que corra ningun nodo, asi que no se le puede dar la\nforma de error del spec. Es un bug abierto (n8n#26365) y actualizar n8n\nno lo arregla. Detalle completo en `docs/adr/0005` del repo.\n\nSi falta la fila -> responde `500 token_no_configurado`. **Falla cerrado.**",
+        "height": 524,
+        "width": 560,
+        "color": 3
+      },
       "id": "nota_auth",
       "name": "Nota — autenticacion",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        120,
-        140
-      ],
-      "parameters": {
-        "width": 560,
-        "height": 300,
-        "color": 3,
-        "content": "## Autenticacion por hash\n\n`Hashear bearer` saca el SHA-256 de la cabecera `Authorization`.\n`Leer token` trae de la data table **bano_secretos** la fila\n`bearer_token_sha256`. `Autorizar` compara **hash contra hash**.\n\n**La tabla NO guarda el token, solo su hash.** Quien la lea no puede\nautenticarse. Rotar el token = actualizar esa fila con el hash nuevo,\nsin reiniciar nada.\n\n### Por que no la autenticacion nativa del Webhook\n\nProbada y medida: devuelve `403` (no 401) con cuerpo de **texto plano**\n(`Authorization data is wrong!`) y cabecera `Www-Authenticate: Basic`.\nRechaza antes de que corra ningun nodo, asi que no se le puede dar la\nforma de error del spec. Es un bug abierto (n8n#26365) y actualizar n8n\nno lo arregla. Detalle completo en `docs/adr/0005` del repo.\n\nSi falta la fila -> responde `500 token_no_configurado`. **Falla cerrado.**"
-      }
+        -176,
+        208
+      ]
     },
     {
+      "parameters": {
+        "content": "## Forma de la salida\n\nTodo nodo pasa `{ __status, cuerpo }` hacia adelante.\n`Responder` fija el codigo HTTP con\n`{{ $json.__status }}`, asi que **un solo camino\nde salida sirve para 200, 400, 401 y 500**.\n\n`Construir response` respeta ese contrato: si\n`__status` no es 200, deja pasar la respuesta de\n`Autorizar` sin tocarla.\n\n### Detalles del spec que cuestan caro olvidar\n\n- `input` puede ser **string O array de items**.\n- Todo item lleva `id`, `type` y **`status`**.\n- Entrada usa `input_text`; salida usa `output_text`.\n\n### Trampa de n8n\n\n`crypto` NO existe en el sandbox del task runner.\nSi un nodo revienta, n8n responde **200 con cuerpo\nvacio**, no 500: un fallo silencioso disfrazado de\nexito. Por eso se valida antes de llegar aqui.",
+        "height": 588,
+        "width": 420,
+        "color": 5
+      },
       "id": "nota_salida",
       "name": "Nota — forma de la salida",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        700,
+        704,
+        192
+      ]
+    },
+    {
+      "id": "esvalido",
+      "name": "Es valido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        900,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.__status }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "agente",
+      "name": "Agente",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1100,
+        -120
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.pregunta }}",
+        "options": {
+          "systemMessage": "Eres BANO, el vocero de la trayectoria profesional de Andrés Gallegos Díaz.\n\n## Quién eres\n\nNo eres un asistente genérico ni el modelo que te ejecuta por dentro. Eres BANO: un agente\nconstruido por Andrés en n8n, con un sistema RAG sobre un documento curado de su trayectoria,\nexpuesto como un endpoint compatible con el estándar Open Responses y desplegado en su propio\nVPS.\n\nNo afirmes qué modelo te ejecuta por dentro: ese dato cambia y no lo tienes. Si te lo\npreguntan, di que el modelo concreto viaja en el campo `model` de cada respuesta, y que puedes\nhablar de tu arquitectura pero no de tus tripas.\n\nNunca digas que fuiste creado por NVIDIA, OpenAI ni ninguna otra empresa de modelos: te\nconstruyó Andrés.\n\n## Cómo hablas\n\nDe Andrés, en TERCERA persona. De ti mismo, en primera.\n\nResponde en el mismo idioma en que te escriban.\n\nSé concreto y breve: dos o tres párrafos como máximo, sin listas salvo que te las pidan.\n\n## Qué puedes afirmar\n\nUsa SIEMPRE la herramienta `corpus_trayectoria` antes de responder cualquier pregunta sobre\nAndrés. No respondas de memoria.\n\nSi la respuesta no está en lo que devuelve la herramienta, dilo con naturalidad. No inventes\nempresas, fechas, cifras, títulos ni tecnologías. Es preferible reconocer que un dato no está\nregistrado a rellenarlo con algo plausible.\n\n<!-- prompt v1 -->"
+        }
+      }
+    },
+    {
+      "id": "modelo",
+      "name": "Modelo",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1020,
         140
       ],
       "parameters": {
-        "width": 420,
-        "height": 300,
-        "color": 5,
-        "content": "## Forma de la salida\n\nTodo nodo pasa `{ __status, cuerpo }` hacia adelante.\n`Responder` fija el codigo HTTP con\n`{{ $json.__status }}`, asi que **un solo camino\nde salida sirve para 200, 400, 401 y 500**.\n\n`Construir response` respeta ese contrato: si\n`__status` no es 200, deja pasar la respuesta de\n`Autorizar` sin tocarla.\n\n### Detalles del spec que cuestan caro olvidar\n\n- `input` puede ser **string O array de items**.\n- Todo item lleva `id`, `type` y **`status`**.\n- Entrada usa `input_text`; salida usa `output_text`.\n\n### Trampa de n8n\n\n`crypto` NO existe en el sandbox del task runner.\nSi un nodo revienta, n8n responde **200 con cuerpo\nvacio**, no 500: un fallo silencioso disfrazado de\nexito. Por eso se valida antes de llegar aqui."
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "maxTokens": 4000,
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "khGoYB8EqlxK66fW",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "tool",
+      "name": "corpus_trayectoria",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        1240,
+        140
+      ],
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Busca en la trayectoria profesional de Andres Gallegos Diaz: perfil, experiencia laboral, habilidades tecnicas, proyectos y arquitecturas entregadas, formacion, certificaciones e idiomas. Usala siempre antes de responder sobre Andres.",
+        "tableName": "bano_corpus",
+        "topK": 5,
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "V0RcqGuqWSuowyhM",
+          "name": "BANO Postgres (pgvector)"
+        }
+      }
+    },
+    {
+      "id": "embt",
+      "name": "Embeddings OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1240,
+        340
+      ],
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "khGoYB8EqlxK66fW",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "fmt",
+      "name": "Formatear response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "// Envuelve la respuesta del agente en un objeto `response` conforme a Open Responses.\n\nconst texto = $input.first().json.output ?? '';\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// El modelo lo fija el flujo, no el cliente: un `model` entrante se IGNORA (ADR-0002).\n// Devolver el que mandaron seria mentir sobre quien respondio.\nconst MODELO = 'gpt-5-mini';\n\nreturn [{\n  json: {\n    __status: 200,\n    cuerpo: {\n      id: id('resp'),\n      object: 'response',\n      created_at: Math.floor(Date.now() / 1000),\n      status: 'completed',\n      model: MODELO,\n      output: [\n        {\n          id: id('msg'),\n          type: 'message',\n          status: 'completed',\n          role: 'assistant',\n          content: [{ type: 'output_text', text: texto, annotations: [] }],\n        },\n      ],\n      // El nodo AI Agent de n8n no expone el conteo de tokens al flujo, asi que\n      // estos valores son cero. Se documenta como desviacion conocida en vez de\n      // inventar una estimacion que pareceria un dato medido.\n      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n    },\n  },\n}];"
       }
     }
   ],
   "connections": {
-    "Construir response": {
-      "main": [
-        [
-          {
-            "node": "Responder",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Leer token": {
       "main": [
         [
@@ -176,7 +294,7 @@
       "main": [
         [
           {
-            "node": "Construir response",
+            "node": "Validar entrada",
             "type": "main",
             "index": 0
           }
@@ -204,9 +322,94 @@
           }
         ]
       ]
+    },
+    "Validar entrada": {
+      "main": [
+        [
+          {
+            "node": "Es valido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es valido": {
+      "main": [
+        [
+          {
+            "node": "Agente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente": {
+      "main": [
+        [
+          {
+            "node": "Formatear response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear response": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "corpus_trayectoria": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "corpus_trayectoria",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }
