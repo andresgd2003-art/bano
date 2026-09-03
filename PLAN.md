@@ -99,11 +99,18 @@ duradera, y sin infraestructura nueva porque esa base ya existe por el ADR-0001.
 **Hecho cuando:** conversa con precisión sobre perfil, experiencia, habilidades y proyectos,
 en español e inglés, y encadena 3 turnos por `previous_response_id`.
 
-## Fase 4 — Streaming SSE
+## Fase 4 — Streaming SSE (DESCARTADA)
 
-Modo streaming nativo de n8n 2.33.7. Verificar que Traefik no bufferice.
+No se hace, por decision de alcance.
 
-**Hecho cuando:** el test *Streaming Response* de la suite de conformidad pasa.
+La plataforma manda `accept: text/event-stream` y `"stream": true` desde el primer mensaje,
+pero **renderiza el JSON sin problema**. Verificado en pantalla.
+
+Ademas, el stream que podiamos dar seria completo de una vez y no token a token: el streaming
+nativo de n8n emite su propio vocabulario (`begin`/`item`/`end`), no los eventos del spec, asi
+que ni siquiera se ganaria el efecto de escritura, que es lo unico que un humano notaria.
+
+El esfuerzo se va a la fase 5. Queda como desviacion conocida en el README.
 
 ## Fase 5 — Guardrails y evaluación
 

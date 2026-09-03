@@ -12,9 +12,10 @@ Andrés Gallegos Díaz, expuesto como un endpoint compatible con
 
 ## Estado
 
-**Fases 1 y 2 completas; fase 3 en curso.** El endpoint es conforme, esta autenticado y
-responde con un agente que consulta el corpus de la trayectoria. Falta la memoria entre
-turnos, el streaming y los guardrails.
+**Fases 1, 2 y 3 completas.** El endpoint es conforme, esta autenticado, responde con un
+agente que consulta el corpus y recuerda la conversacion. Falta endurecer los guardrails
+(fase 5) y publicar la tarjeta de agente (fase 6). El streaming quedo descartado.
+
 Ver [PLAN.md](./PLAN.md) para las 7 fases y su criterio de "hecho".
 
 Verificado de punta a punta contra la plataforma cliente real, no sólo con `curl`.
@@ -29,7 +30,7 @@ Verificado de punta a punta contra la plataforma cliente real, no sólo con `cur
 | `usage` | presente, pero en cero: ver desviaciones |
 | Errores `{type, code, message, param}` | sí, con `param` señalando el campo culpable |
 | `previous_response_id` | fase 3 |
-| Streaming SSE | fase 4 |
+| Streaming SSE | **no**, ver desviaciones |
 | Imágenes y archivos | fase 7 |
 | WebSocket, `/responses/compact`, function calling | fuera de alcance |
 
@@ -41,6 +42,12 @@ envía. Exigirlo rompería el endpoint contra el único cliente que importa. Ver
 
 **Un JSON malformado devuelve `422` con el cuerpo de n8n**, no un error con la forma del spec.
 n8n lo rechaza antes de que el flujo arranque; interceptarlo exigiría un proxy delante.
+
+**No hay streaming SSE.** La plataforma lo pide con `accept: text/event-stream` desde el
+primer mensaje, pero renderiza el JSON sin problema, asi que se descarto por alcance. El
+streaming nativo de n8n emite su propio vocabulario de eventos (`begin`/`item`/`end`), no los
+del spec, y lo que se podria construir encima seria un stream completo de una vez, sin el
+efecto de escritura que es lo unico que un humano notaria.
 
 **`usage` va en ceros.** El nodo AI Agent de n8n no expone el conteo de tokens al flujo: su
 salida trae solo el texto y la metadata de uso se queda en la ejecucion. Estimarlo por
