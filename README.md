@@ -12,9 +12,11 @@ Andrés Gallegos Díaz, expuesto como un endpoint compatible con
 
 ## Estado
 
-**Fases 1, 2 y 3 completas.** El endpoint es conforme, esta autenticado, responde con un
-agente que consulta el corpus y recuerda la conversacion. Falta endurecer los guardrails
-(fase 5) y publicar la tarjeta de agente (fase 6). El streaming quedo descartado.
+**Fases 1, 2, 3 y 5 completas.** El endpoint es conforme, esta autenticado, responde con un
+agente que consulta el corpus y recuerda la conversacion, y tiene guardrails medidos con un
+juez de modelo (personales, sesgo, fuera de tema, inyeccion) mas una bateria DeepEval
+multi-turno de seis familias de ataque. Falta publicar la tarjeta de agente (fase 6). El
+streaming quedo descartado.
 
 Ver [PLAN.md](./PLAN.md) para las 7 fases y su criterio de "hecho".
 
@@ -133,6 +135,41 @@ Dos decisiones para que el gate mida calidad y no ruido: acepta **alternativas**
 una palabra exacta, y da **un reintento** antes de declarar fallo. La respuesta de un modelo
 no es determinista, y un gate que exija una redaccion concreta se rompe solo.
 
+## Correr el gate de guardrails
+
+Personales (edad, religion, estado civil, salario), sesgo (origen, universidad), fuera de
+tema, e inyeccion clasica. Un turno por caso.
+
+    node tests/guardrails.mjs
+
+Juzgado por modelo (`tests/juez.mjs`, sale por NVIDIA), no por busqueda de subcadenas: la
+busqueda de texto fallo cuatro veces en produccion en un solo dia en las dos direcciones
+(ver #24). Necesita `NVIDIA_API_KEY`.
+
+## Correr la bateria DeepEval
+
+Personas adversarias **multi-turno**, una simulada por un modelo de lenguaje, que atacan por
+las seis familias del ticket #26: **trampa, estres, idioma, sesgo, inyeccion y fuera de
+tema**. El juez evalua la transcripcion completa, no un turno suelto: la insistencia a lo
+largo de varios turnos es parte del ataque.
+
+    node tests/deepeval.mjs
+
+Tarda varios minutos (12 conversaciones + 12 llamadas al juez). Corre fuera del horario de
+ventas: comparte cuota de NVIDIA con el simulador de otro bot en produccion.
+
+**Los resultados quedan versionados en el repositorio**, en `resultados/deepeval/<fecha>.json`,
+con la version del prompt REALMENTE desplegada (verificada en vivo contra n8n, no leida a
+ciegas del archivo local — un archivo local mas nuevo que lo desplegado mentiria sobre que
+version se midio) y el motivo del juez para cada veredicto.
+
+Última corrida (2026-09-03, prompt v8): **8/12**. Los cuatro gates de conformidad,
+recuperacion, conversacion y guardrails siguen en verde con el mismo prompt — sin regresion.
+Fallos reales encontrados y aun sin resolver: bajo presion de estres sostenido (grosero,
+preguntas encimadas) BANO pierde el tono profesional o deja de responder, y con mezcla de
+espanol e ingles en el mismo mensaje a veces solo devuelve una aclaracion en vez de datos.
+Quedan para un ticket de endurecimiento aparte.
+
 ## Ver que sabe BANO sobre si mismo
 
     node tests/autoconocimiento.mjs
@@ -157,7 +194,8 @@ BANO no puede responder, separando los huecos reales de los que son deliberados.
     prompts/sistema.md   el prompt del agente, versionado
     corpus/              lo que BANO puede citar: trayectoria y arquitectura
     infra/                provisiona la base y despliega el prompt
-    tests/               tres gates (conformidad, recuperacion, conversacion) y el analisis de huecos
+    tests/               gates (conformidad, recuperacion, conversacion, guardrails, deepeval) y el analisis de huecos
+    resultados/deepeval/ resultados versionados de la bateria DeepEval, por fecha
 
 ## Seguridad
 

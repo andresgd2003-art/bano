@@ -67,7 +67,10 @@ diga "BANO" de forma literal. No la descartes como fuera de contexto por eso.`;
   writeFileSync(f, JSON.stringify({
     model: "nvidia/nemotron-3-super-120b-a12b",
     temperature: 0, // el mismo caso debe dar el mismo veredicto; sin esto el juez varia entre llamadas
-    max_tokens: 4000, // el 120B razona en reasoning_content; con poco margen trunca antes del JSON
+    // el 120B razona en reasoning_content; con poco margen trunca antes del JSON. 4000 alcanzaba
+    // para un turno suelto pero no para una transcripcion multi-turno larga (visto en deepeval,
+    // #26): la misma causa raiz que el fix de #25 en el nodo Modelo de BANO.
+    max_tokens: 8000,
     messages: [
       { role: "system", content: sistema },
       { role: "user", content: `PREGUNTA: ${pregunta}\n\nRESPUESTA: ${respuesta}\n\nCRITERIO: ${criterio}` },
