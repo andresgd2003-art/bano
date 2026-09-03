@@ -60,6 +60,17 @@ if (actual === prompt) { console.log("\nYa estan sincronizados. Nada que hacer.\
 if (soloVerificar) { console.log("\nDIFIEREN. Corre sin --verificar para desplegar.\n"); process.exit(1); }
 
 agente.parameters = { ...agente.parameters, options: { ...(agente.parameters?.options ?? {}), systemMessage: prompt } };
+
+// La version tambien se graba en cada fila de `turnos`, para poder comparar calidad
+// entre versiones del prompt. Si el nodo que la escribe queda desfasado, el log miente.
+const fmt = wf.nodes.find((n) => n.name === "Formatear response");
+if (fmt?.parameters?.jsCode?.includes("PROMPT_VERSION")) {
+  fmt.parameters.jsCode = fmt.parameters.jsCode.replace(
+    /const PROMPT_VERSION = '[^']*';/,
+    "const PROMPT_VERSION = '" + version + "';",
+  );
+  console.log("tambien: PROMPT_VERSION en \"Formatear response\" -> " + version);
+}
 const cuerpo = join(dir, "wf.json");
 writeFileSync(cuerpo, JSON.stringify({ name: wf.name, nodes: wf.nodes, connections: wf.connections, settings: wf.settings }));
 
