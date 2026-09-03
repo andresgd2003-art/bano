@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS turnos (
   prompt_version        text,
   latencia_ms           integer,
   input_tokens          integer DEFAULT 0,   -- el nodo AI Agent de n8n no los expone
-  output_tokens         integer DEFAULT 0
+  output_tokens         integer DEFAULT 0,
+  alerta_inyeccion      boolean DEFAULT false  -- filtro determinista en "Validar entrada" (#25);
+                                                -- registrada, no bloquea: el prompt es quien resiste
 );
 
 CREATE INDEX IF NOT EXISTS turnos_conversacion ON turnos (conversation_id, creado_en);

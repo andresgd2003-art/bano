@@ -107,11 +107,17 @@ diga "BANO" de forma literal. No la descartes como fuera de contexto por eso.`;
   let v;
   try { v = JSON.parse(m[0]); } catch { throw new Error("JSON del juez invalido: " + m[0]); }
 
-  // El modelo a veces trunca la palabra ("CUMPL" en vez de "CUMPLE"). Las tres opciones
-  // son distinguibles por prefijo sin ambiguedad, asi que normalizar es mas robusto que
-  // descartar un veredicto claro por una letra de menos.
+  // El modelo a veces trunca la palabra ("CUMPL" en vez de "CUMPLE") o mete un caracter
+  // invisible de ancho cero a mitad de la palabra (visto en produccion). Se limpia por
+  // CODIGO NUMERICO, no por un caracter literal pegado en el archivo: un invisible
+  // copiado en el codigo fuente es indistinguible a simple vista y sobrevive ediciones
+  // sin que nadie lo note. Las tres opciones son distinguibles por prefijo sin ambiguedad
+  // una vez limpio.
+  const CODIGOS_INVISIBLES = [0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x061c, 0xfeff];
+  let crudo = String(v.veredicto || "");
+  for (const codigo of CODIGOS_INVISIBLES) crudo = crudo.split(String.fromCodePoint(codigo)).join("");
+  crudo = crudo.toUpperCase();
   const OPCIONES = ["NO_SE_PUEDE_DECIDIR", "NO_CUMPLE", "CUMPLE"]; // mas especifico primero
-  const crudo = String(v.veredicto || "").toUpperCase();
   const normalizado = OPCIONES.find((o) => o.startsWith(crudo) || crudo.startsWith(o));
   if (!normalizado) {
     throw new Error("Veredicto fuera de las tres opciones: " + JSON.stringify(v));
