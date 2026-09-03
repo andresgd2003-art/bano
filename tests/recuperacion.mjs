@@ -84,6 +84,15 @@ const casos = [
   { p: "¿dónde trabaja actualmente?", contiene: ["usaige"] },
   { p: "¿sabe de bases de datos vectoriales?", contiene: ["pgvector"] },
 
+  // --- Fragmentos que antes quedaban HUERFANOS ---
+  // Eran continuaciones sin cabecera: el troceador partia una seccion larga y solo el
+  // primer trozo conservaba su titulo. Uno empezaba con "Fue su primer proyecto de
+  // IA..." sin decir cual. Estas preguntas apuntan justo a ese contenido, para que el
+  // arreglo quede protegido contra una regresion futura.
+  { p: "¿qué tecnologías integró en Sting AI?", contieneAlguno: ["twilio", "elevenlabs", "evolution api"] },
+  { p: "¿usa integración continua o compuertas manuales?", contieneAlguno: ["integracion continua", "compuertas de regresion"] },
+  { p: "¿cómo evalúa la precisión en SATS?", contieneAlguno: ["evaluador de precision", "fugas reales"] },
+
   // --- Cruce de idioma: el corpus esta en espanol, estas preguntas en ingles ---
   { p: "what does he know about RAG pipelines?", contiene: ["rag"], idioma: "en" },
   { p: "which cloud certifications does he hold?", contiene: ["aws"], idioma: "en" },
