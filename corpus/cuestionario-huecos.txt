@@ -1,0 +1,124 @@
+CUESTIONARIO — HUECOS DEL CORPUS DE BANO
+========================================
+
+Estas 18 preguntas NO son inventadas: salen de medir el corpus con `tests/huecos.mjs`.
+Son las que BANO hoy no puede responder y que un reclutador o un evaluador sí hacen.
+
+CÓMO CONTESTAR
+--------------
+Escribe debajo de cada "R:" en la misma línea o en varias, como prefieras.
+Si un dato no aplica o no lo quieres público, escribe:  R: OMITIR
+Si no lo recuerdas con exactitud, escribe un rango y márcalo:  R: ~200 (aproximado)
+
+Es mejor OMITIR que aproximar sin avisar. Todo lo que escribas aquí acabará en el
+corpus, y BANO lo va a afirmar como cierto ante quien pregunte.
+
+Cuando termines, avísame y leo este archivo para ampliar `corpus/trayectoria.md`.
+
+
+================================================================
+1. CIFRAS DE TUS PROYECTOS
+================================================================
+Son las que más pesan en una entrevista técnica: convierten "construí un agente"
+en "construí un agente que atiende a N personas".
+
+1.1  ¿Cuántos clientes o conversaciones atiende Sting AI? (al día, al mes, o total)
+R:
+
+1.2  ¿Qué volumen procesa SATS? (expedientes al día/semana, o páginas)
+R:
+
+1.3  ¿Qué resultado medible obtuvo el cliente de USAIGE con el agente de la base
+     industrial? (ahorro, tiempo, incidencias detectadas… lo que tengas)
+R:
+
+1.4  ¿Cuánto tiempo te tomó construir cada uno? (Sting AI / SATS / el de USAIGE)
+R:
+
+
+================================================================
+2. CONTEXTO DE TRABAJO
+================================================================
+Esto es lo primero que pregunta un reclutador y el corpus no lo dice.
+
+2.1  ¿Has liderado equipos o tenido gente a tu cargo? Si sí, ¿cuántas personas y
+     en qué contexto?
+R:
+
+2.2  En Sting AI, SATS y USAIGE, ¿trabajaste solo o con equipo? Di cuál en cada uno.
+R:
+
+2.3  ¿Has trabajado con clientes internacionales o sólo en México?
+R:
+
+2.4  ¿En qué ciudad vives y estás dispuesto a mudarte? ¿Trabajo remoto, híbrido,
+     presencial?
+R:
+
+2.5  ¿Cuál es tu disponibilidad para incorporarte? (inmediata, X semanas…)
+R:
+
+2.6  ¿Cuántos años de experiencia profesional cuentas en total, y desde cuándo los
+     cuentas? (Western Union 2020 daría ~6; si tú cuentas desde otro punto, dilo)
+R:
+
+
+================================================================
+3. HUECOS TÉCNICOS
+================================================================
+Ojo con estos: si BANO no encuentra nada, la ausencia se lee como un "no sabe".
+Contestar "no lo he usado" también sirve — es honesto y BANO lo dirá bien.
+
+3.1  ¿Kubernetes? (nivel real, o "no lo he usado")
+R:
+
+3.2  ¿TypeScript o JavaScript en producción? ¿Dónde?
+R:
+
+3.3  ¿Pruebas automatizadas y CI/CD? Tu CV presume "suites de evaluación como
+     compuerta de liberación", que es exactamente esto, pero el corpus no lo
+     conecta. ¿Usas GitHub Actions, pre-commit, gates a mano?
+R:
+
+3.4  ¿Has hecho fine-tuning de modelos, o sólo consumes APIs?
+R:
+
+3.5  ¿Qué otras bases de datos además de PostgreSQL y Supabase? (PocketBase,
+     Redis, Google Sheets como capa de datos…)
+R:
+
+
+================================================================
+4. FORMACIÓN
+================================================================
+
+4.1  ¿Ya te titulaste o sigues estudiando? El corpus dice "2021 a 2026" sin
+     aclararlo, y es de las primeras cosas que se preguntan. Si el título está en
+     trámite, dilo así.
+R:
+
+4.2  ¿Promedio o distinciones académicas que quieras incluir?
+R:
+
+
+================================================================
+5. VISIBILIDAD
+================================================================
+
+5.1  ¿Tienes proyectos públicos en GitHub, portafolio o demos que se puedan
+     mencionar? (el repositorio de BANO ya es uno)
+R:
+
+5.2  ¿Has publicado artículos, dado charlas, hecho cursos o enseñado a alguien?
+R:
+
+
+================================================================
+6. LIBRE
+================================================================
+
+6.1  ¿Algo que quieras que BANO sepa de ti y que no haya preguntado?
+R:
+
+6.2  ¿Algo que NO quieras que diga nunca, aunque se lo pregunten?
+R:

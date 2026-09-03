@@ -110,6 +110,14 @@ Dos decisiones para que el gate mida calidad y no ruido: acepta **alternativas**
 una palabra exacta, y da **un reintento** antes de declarar fallo. La respuesta de un modelo
 no es determinista, y un gate que exija una redaccion concreta se rompe solo.
 
+## Ver que sabe BANO sobre si mismo
+
+    node tests/autoconocimiento.mjs
+
+Tampoco es un gate. Pregunta por su propia arquitectura y separa lo que responde bien de lo
+que reconoce no saber y de lo que **se inventa**. La evaluacion pide explicar que componentes
+usa el agente y por que, asi que un evaluador va a preguntar justo esto.
+
 ## Ver que le falta al corpus
 
     node tests/huecos.mjs
@@ -124,7 +132,7 @@ BANO no puede responder, separando los huecos reales de los que son deliberados.
     docs/adr/            decisiones de arquitectura y por qué
     workflows/bano.json  el flujo de n8n, exportado (sin credenciales)
     prompts/sistema.md   el prompt del agente, versionado
-    corpus/              el documento de trayectoria que indexa el RAG
+    corpus/              lo que BANO puede citar: trayectoria y arquitectura
     infra/                provisiona la base y despliega el prompt
     tests/               tres gates (conformidad, recuperacion, conversacion) y el analisis de huecos
 
