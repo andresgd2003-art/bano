@@ -37,6 +37,16 @@ Su experiencia con clientes ha sido en México.
 
 ## Experiencia laboral
 
+Andrés ha tenido tres empleos, en este orden cronológico:
+
+1. **Western Union**, agente telefónico bilingüe, de septiembre de 2020 a mayo de 2021.
+2. **Joyson Safety Systems**, practicante de gestión de programas, de junio de 2025 a mayo
+   de 2026. Es el empleo **anterior** al actual.
+3. **USAIGE**, ingeniero de IA y automatización, desde 2026 y hasta hoy. Es el empleo
+   **actual**.
+
+Antes de USAIGE estuvo en Joyson Safety Systems; antes de Joyson, en Western Union.
+
 ### Ingeniero de IA y Automatización — USAIGE (2026 – actualidad)
 
 Es dueño de la solución técnica de principio a fin para el cliente: conduce la conversación de

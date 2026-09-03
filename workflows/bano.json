@@ -144,40 +144,6 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "c1",
-              "leftValue": "={{ $json.__status }}",
-              "rightValue": 200,
-              "operator": {
-                "type": "number",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "looseTypeValidation": true,
-        "options": {}
-      },
-      "id": "esvalido",
-      "name": "Es valido",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1216,
-        0
-      ]
-    },
-    {
-      "parameters": {
         "promptType": "define",
         "text": "={{ $json.pregunta }}",
         "needsFallback": true,
@@ -332,8 +298,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1344,
-        -128
+        900,
+        0
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -343,19 +309,19 @@
         }
       },
       "onError": "continueRegularOutput",
-      "notes": "Si viene vacio se manda '-' como centinela: con un reemplazo vacio n8n no envia ningun parametro y la consulta falla con 'there is no parameter $1'. Si la base falla, continueRegularOutput deja seguir el turno: BANO responde sin memoria en vez de no responder."
+      "notes": "Corre tambien para peticiones ya marcadas como error: sin `previous_response_id` se manda '-' como centinela y la consulta devuelve cero filas, inofensiva. Se acepta ese SELECT de mas a cambio de un portero menos; la exposicion no cambia, porque una peticion sin token valido ya provocaba antes una lectura de la data table en `Leer token`.\n\nCon un reemplazo vacio n8n no envia ningun parametro y la consulta falla con 'there is no parameter $1'.\n\nSi la base falla, continueRegularOutput deja seguir el turno: BANO responde sin memoria en vez de no responder."
     },
     {
       "parameters": {
-        "jsCode": "// Decide a que conversacion pertenece este turno.\n//\n// Si no llego `previous_response_id`, se abre una conversacion nueva.\n// Si llego y resolvio, se hereda su `conversation_id`.\n// Si llego y NO resolvio, se responde 400: callar y empezar de cero seria peor que\n// fallar, porque el evaluador creeria que BANO perdio la memoria a mitad de la\n// conversacion, sin saber por que.\n//\n// Un id deja de resolver por dos motivos: no existio nunca, o caduco. La limpieza\n// borra los turnos de mas de 30 dias (flujo \"BANO - Limpieza de turnos\").\n\nconst turno = $('Validar entrada').first().json;\nconst fila = $input.first().json ?? {};\n\nconst pedido = String(turno.previous_response_id || '').trim();\nconst encontrado = fila.conversation_id;\n\n// Si la base fallo, `Resolver conversacion` deja pasar su error como item. Se\n// distingue de \"no encontrado\": ahi la culpa es del servidor, no de quien llama,\n// y es preferible responder sin memoria a rechazar un id que quiza si existe.\nconst baseFallo = Boolean(fila.error);\n\nif (pedido && !encontrado && !baseFallo) {\n  return [{\n    json: {\n      __status: 400,\n      cuerpo: {\n        error: {\n          type: 'invalid_request_error',\n          code: 'previous_response_not_found',\n          message: 'El `previous_response_id` no existe o ya caduco. Las conversaciones se conservan 30 dias.',\n          param: 'previous_response_id',\n        },\n      },\n    },\n  }];\n}\n\nconst nuevo = () =>\n  'conv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\nreturn [{\n  json: {\n    __status: 200,\n    pregunta: turno.pregunta,\n    previous_response_id: pedido,\n    conversation_id: encontrado || nuevo(),\n    conversacion_nueva: !encontrado,\n    t0: turno.t0,\n  },\n}];"
+        "jsCode": "// Decide a que conversacion pertenece este turno.\n//\n// Si no llego `previous_response_id`, se abre una conversacion nueva.\n// Si llego y resolvio, se hereda su `conversation_id`.\n// Si llego y NO resolvio, se responde 400: callar y empezar de cero seria peor que\n// fallar, porque el evaluador creeria que BANO perdio la memoria a mitad de la\n// conversacion, sin saber por que.\n//\n// Un id deja de resolver por dos motivos: no existio nunca, o caduco. La limpieza\n// borra los turnos de mas de 30 dias (flujo \"BANO - Limpieza de turnos\").\n\nconst turno = $('Validar entrada').first().json;\n\n// Lo que ya viene marcado como error pasa intacto hasta el portero unico del final.\n// Antes habia un IF aqui delante que lo frenaba; se quito por ser identico al de\n// mas abajo, y este nodo se hizo responsable de no estorbar.\nif (turno.__status !== 200) return [{ json: turno }];\n\nconst fila = $input.first().json ?? {};\nconst pedido = String(turno.previous_response_id || '').trim();\nconst encontrado = fila.conversation_id;\n\n// Si la base fallo, `Resolver conversacion` deja pasar su error como item. Se\n// distingue de \"no encontrado\": ahi la culpa es del servidor, no de quien llama,\n// y es preferible responder sin memoria a rechazar un id que quiza si existe.\nconst baseFallo = Boolean(fila.error);\n\nif (pedido && !encontrado && !baseFallo) {\n  return [{\n    json: {\n      __status: 400,\n      cuerpo: {\n        error: {\n          type: 'invalid_request_error',\n          code: 'previous_response_not_found',\n          message: 'El `previous_response_id` no existe o ya caduco. Las conversaciones se conservan 30 dias.',\n          param: 'previous_response_id',\n        },\n      },\n    },\n  }];\n}\n\nconst nuevo = () =>\n  'conv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\nreturn [{\n  json: {\n    __status: 200,\n    pregunta: turno.pregunta,\n    previous_response_id: pedido,\n    conversation_id: encontrado || nuevo(),\n    conversacion_nueva: !encontrado,\n    t0: turno.t0,\n  },\n}];"
       },
       "id": "decidir",
       "name": "Decidir conversacion",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1504,
-        -128
+        1080,
+        0
       ]
     },
     {
@@ -415,10 +381,10 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": true,
+            "version": 2,
             "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
+            "caseSensitive": true,
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -437,13 +403,14 @@
         "options": {}
       },
       "id": "esvalido2",
-      "name": "Conversacion resuelta",
+      "name": "Puede seguir",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1680,
-        -128
-      ]
+        1260,
+        0
+      ],
+      "notes": "Portero UNICO del flujo. Todo lo que llega marcado con __status distinto de 200 (401 de autenticacion, 400 de validacion, 400 de id desconocido) sale por la rama falsa directo a Responder.\n\nAntes habia dos IF con esta misma condicion. El streaming cuelga de este."
     }
   ],
   "connections": {
@@ -485,35 +452,6 @@
         [
           {
             "node": "Leer token",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validar entrada": {
-      "main": [
-        [
-          {
-            "node": "Es valido",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Es valido": {
-      "main": [
-        [
-          {
-            "node": "Resolver conversacion",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Responder",
             "type": "main",
             "index": 0
           }
@@ -652,14 +590,14 @@
       "main": [
         [
           {
-            "node": "Conversacion resuelta",
+            "node": "Puede seguir",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Conversacion resuelta": {
+    "Puede seguir": {
       "main": [
         [
           {
@@ -671,6 +609,17 @@
         [
           {
             "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar entrada": {
+      "main": [
+        [
+          {
+            "node": "Resolver conversacion",
             "type": "main",
             "index": 0
           }
