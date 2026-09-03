@@ -190,7 +190,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1856,
+        1888,
         -496
       ],
       "onError": "continueErrorOutput"
@@ -213,8 +213,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1488,
-        -272
+        1840,
+        -192
       ],
       "credentials": {
         "openAiApi": {
@@ -236,8 +236,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1.3,
       "position": [
-        1984,
-        -224
+        2112,
+        -256
       ],
       "credentials": {
         "postgres": {
@@ -255,8 +255,8 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
       "typeVersion": 1.2,
       "position": [
-        1984,
-        -80
+        2256,
+        -128
       ],
       "credentials": {
         "openAiApi": {
@@ -309,8 +309,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1664,
-        -272
+        1936,
+        -336
       ],
       "credentials": {
         "openAiApi": {
@@ -332,8 +332,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        944,
-        -480
+        1344,
+        -128
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -354,8 +354,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        -464
+        1504,
+        -128
       ]
     },
     {
@@ -369,8 +369,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
       "position": [
-        1840,
-        -272
+        2016,
+        -192
       ]
     },
     {
@@ -400,7 +400,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Empaqueta el turno como JSON en base64, para pasarlo a Postgres en UN solo parametro.\n//\n// Por que base64 y no varios parametros: n8n parte `queryReplacement` por COMAS, asi que\n// cualquier valor con una coma corre las columnas. Es un bug abierto de n8n (#14955,\n// reabierto en #16354, cerrado como \"not planned\"). Lo vimos en vivo: la pregunta acabo\n// en la columna `previous_response_id` y la respuesta en `entrada`.\n// El base64 no puede contener comas, asi que el problema desaparece de raiz.\n\nconst r = $('Formatear response').first().json;\nconst c = $('Decidir conversacion').first().json;\n\nconst registro = {\n  response_id: r.cuerpo.id,\n  conversation_id: c.conversation_id,\n  previous_response_id: c.previous_response_id || null,\n  entrada: c.pregunta,\n  salida: r.cuerpo.output[0].content[0].text,\n  modelo: r.cuerpo.model,\n  prompt_version: r.prompt_version,\n  latencia_ms: Date.now() - c.t0,\n};\n\nreturn [{ json: { registro_b64: Buffer.from(JSON.stringify(registro), 'utf8').toString('base64') } }];"
+        "jsCode": "// Empaqueta el turno como JSON en base64, para pasarlo a Postgres en UN solo parametro.\n//\n// Por que base64 y no varios parametros: n8n parte `queryReplacement` por COMAS, asi que\n// cualquier valor con una coma corre las columnas. Es un bug abierto de n8n (#14955,\n// reabierto en #16354, cerrado como \"not planned\"). Lo vimos en vivo: la pregunta acabo\n// en la columna `previous_response_id` y la respuesta en `entrada`.\n// El base64 no puede contener comas, asi que el problema desaparece de raiz.\n\n// Este nodo cuelga de `Responder`, que se ejecuta TAMBIEN en los caminos de error\n// (401, 400, 503). En esos casos `Formatear response` nunca corrio y leerlo revienta,\n// dejando la ejecucion marcada como fallida aunque el cliente ya recibio su respuesta\n// correcta. El resultado eran errores falsos que enmascaran los de verdad, justo en\n// el log que existe para observar el sistema.\n//\n// Sin turno que registrar, no se registra nada.\nif (!$('Formatear response').isExecuted) return [];\n\nconst r = $('Formatear response').first().json;\nconst c = $('Decidir conversacion').first().json;\n\nconst registro = {\n  response_id: r.cuerpo.id,\n  conversation_id: c.conversation_id,\n  previous_response_id: c.previous_response_id || null,\n  entrada: c.pregunta,\n  salida: r.cuerpo.output[0].content[0].text,\n  modelo: r.cuerpo.model,\n  prompt_version: r.prompt_version,\n  latencia_ms: Date.now() - c.t0,\n};\n\nreturn [{ json: { registro_b64: Buffer.from(JSON.stringify(registro), 'utf8').toString('base64') } }];"
       },
       "id": "prepreg",
       "name": "Preparar registro",
@@ -441,8 +441,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1264,
-        -496
+        1680,
+        -128
       ]
     }
   ],

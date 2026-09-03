@@ -95,6 +95,28 @@ El documento viaja en el cuerpo, no por URL, porque se edita seguido:
 
 Reejecutar **no duplica**: borra por documento antes de insertar.
 
+## Correr el gate de conversacion
+
+Precision sobre la trayectoria, que no invente lo que no esta en el corpus, y memoria
+encadenada por `previous_response_id`. En español y en ingles.
+
+    node tests/conversacion.mjs
+    node tests/conversacion.mjs --adversario   # anade un modelo haciendo de usuario dificil
+
+El adversario sale por NVIDIA, que es gratuita, para no doblar el consumo de la credencial
+de OpenAI que BANO comparte con otro bot en produccion. Tarda varios minutos.
+
+Dos decisiones para que el gate mida calidad y no ruido: acepta **alternativas** en vez de
+una palabra exacta, y da **un reintento** antes de declarar fallo. La respuesta de un modelo
+no es determinista, y un gate que exija una redaccion concreta se rompe solo.
+
+## Ver que le falta al corpus
+
+    node tests/huecos.mjs
+
+No es un gate y no falla nada: hace las preguntas que un reclutador haria y lista cuales
+BANO no puede responder, separando los huecos reales de los que son deliberados.
+
 ## Estructura
 
     PLAN.md              las 7 fases y su criterio de "hecho"
@@ -104,7 +126,7 @@ Reejecutar **no duplica**: borra por documento antes de insertar.
     prompts/sistema.md   el prompt del agente, versionado
     corpus/              el documento de trayectoria que indexa el RAG
     infra/                provisiona la base y despliega el prompt
-    tests/               los dos gates: conformidad y recuperacion
+    tests/               tres gates (conformidad, recuperacion, conversacion) y el analisis de huecos
 
 ## Seguridad
 
