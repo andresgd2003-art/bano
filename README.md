@@ -84,6 +84,22 @@ exacto: con un corpus pequeno varias secciones responden legitimamente a la mism
 Incluye preguntas en ingles contra el corpus en espanol, porque el cruce de idioma es un riesgo
 real que conviene vigilar.
 
+### Leer la medida
+
+Además de pasar o fallar, reporta por caso el **puesto** del fragmento correcto, su distancia
+y el **margen** hasta el mejor fragmento incorrecto:
+
+    MEDIDA  margen medio 0.0564 | peor -0.1247 | negativos 2 | fuera de la ventana 1
+
+Un margen **positivo** significa que el fragmento correcto gana por esa distancia. **Negativo**
+significa que un fragmento incorrecto lo supera, y que el caso pasa por acumulación y no por
+acierto.
+
+Existe porque un `13/13` no permite comparar dos alternativas de troceado: si un caso ya pasa,
+no se ve si mejoró o empeoró al borde. El margen sí. La medida es determinista, así que dos
+corridas sin cambios dan los mismos números.
+
+
 ## Reindexar el corpus
 
 El documento viaja en el cuerpo, no por URL, porque se edita seguido:
