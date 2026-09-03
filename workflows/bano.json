@@ -44,8 +44,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1540,
-        0
+        1696,
+        256
       ]
     },
     {
@@ -138,26 +138,18 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        704,
-        192
+        448,
+        208
       ]
     },
     {
-      "id": "esvalido",
-      "name": "Es valido",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        900,
-        0
-      ],
       "parameters": {
         "conditions": {
           "options": {
-            "version": 2,
-            "leftValue": "",
             "caseSensitive": true,
-            "typeValidation": "loose"
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
           },
           "conditions": [
             {
@@ -174,34 +166,36 @@
         },
         "looseTypeValidation": true,
         "options": {}
-      }
+      },
+      "id": "esvalido",
+      "name": "Es valido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        0
+      ]
     },
     {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.pregunta }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Eres BANO, el vocero de la trayectoria profesional de Andrés Gallegos Díaz.\n\n## Quién eres\n\nNo eres un asistente genérico ni el modelo que te ejecuta por dentro. Eres BANO: un agente\nconstruido por Andrés en n8n, con un sistema RAG sobre un documento curado de su trayectoria,\nexpuesto como un endpoint compatible con el estándar Open Responses y desplegado en su propio\nVPS.\n\nNo afirmes qué modelo te ejecuta por dentro: ese dato cambia y no lo tienes. Si te lo\npreguntan, di que el modelo concreto viaja en el campo `model` de cada respuesta, y que puedes\nhablar de tu arquitectura pero no de tus tripas.\n\nNunca digas que fuiste creado por NVIDIA, OpenAI ni ninguna otra empresa de modelos: te\nconstruyó Andrés.\n\n## Cómo hablas\n\nDe Andrés, en TERCERA persona. De ti mismo, en primera.\n\nResponde en el mismo idioma en que te escriban.\n\nSé concreto y breve: dos o tres párrafos como máximo, sin listas salvo que te las pidan.\n\n## Qué puedes afirmar\n\nUsa SIEMPRE la herramienta `corpus_trayectoria` antes de responder cualquier pregunta sobre\nAndrés. No respondas de memoria.\n\nSi la respuesta no está en lo que devuelve la herramienta, dilo con naturalidad. No inventes\nempresas, fechas, cifras, títulos ni tecnologías. Es preferible reconocer que un dato no está\nregistrado a rellenarlo con algo plausible.\n\n<!-- prompt v1 -->"
+        }
+      },
       "id": "agente",
       "name": "Agente",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1100,
-        -120
+        1040,
+        -400
       ],
-      "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.pregunta }}",
-        "options": {
-          "systemMessage": "Eres BANO, el vocero de la trayectoria profesional de Andrés Gallegos Díaz.\n\n## Quién eres\n\nNo eres un asistente genérico ni el modelo que te ejecuta por dentro. Eres BANO: un agente\nconstruido por Andrés en n8n, con un sistema RAG sobre un documento curado de su trayectoria,\nexpuesto como un endpoint compatible con el estándar Open Responses y desplegado en su propio\nVPS.\n\nNo afirmes qué modelo te ejecuta por dentro: ese dato cambia y no lo tienes. Si te lo\npreguntan, di que el modelo concreto viaja en el campo `model` de cada respuesta, y que puedes\nhablar de tu arquitectura pero no de tus tripas.\n\nNunca digas que fuiste creado por NVIDIA, OpenAI ni ninguna otra empresa de modelos: te\nconstruyó Andrés.\n\n## Cómo hablas\n\nDe Andrés, en TERCERA persona. De ti mismo, en primera.\n\nResponde en el mismo idioma en que te escriban.\n\nSé concreto y breve: dos o tres párrafos como máximo, sin listas salvo que te las pidan.\n\n## Qué puedes afirmar\n\nUsa SIEMPRE la herramienta `corpus_trayectoria` antes de responder cualquier pregunta sobre\nAndrés. No respondas de memoria.\n\nSi la respuesta no está en lo que devuelve la herramienta, dilo con naturalidad. No inventes\nempresas, fechas, cifras, títulos ni tecnologías. Es preferible reconocer que un dato no está\nregistrado a rellenarlo con algo plausible.\n\n<!-- prompt v1 -->"
-        }
-      }
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "modelo",
-      "name": "Modelo",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.3,
-      "position": [
-        1020,
-        140
-      ],
       "parameters": {
         "model": {
           "__rl": true,
@@ -214,6 +208,14 @@
           "timeout": 120000
         }
       },
+      "id": "modelo",
+      "name": "Modelo",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        -240
+      ],
       "credentials": {
         "openAiApi": {
           "id": "khGoYB8EqlxK66fW",
@@ -222,14 +224,6 @@
       }
     },
     {
-      "id": "tool",
-      "name": "corpus_trayectoria",
-      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
-      "typeVersion": 1.3,
-      "position": [
-        1240,
-        140
-      ],
       "parameters": {
         "mode": "retrieve-as-tool",
         "toolDescription": "Busca en la trayectoria profesional de Andres Gallegos Diaz: perfil, experiencia laboral, habilidades tecnicas, proyectos y arquitecturas entregadas, formacion, certificaciones e idiomas. Usala siempre antes de responder sobre Andres.",
@@ -237,6 +231,14 @@
         "topK": 5,
         "options": {}
       },
+      "id": "tool",
+      "name": "corpus_trayectoria",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        1232,
+        -96
+      ],
       "credentials": {
         "postgres": {
           "id": "V0RcqGuqWSuowyhM",
@@ -245,18 +247,17 @@
       }
     },
     {
+      "parameters": {
+        "options": {}
+      },
       "id": "embt",
       "name": "Embeddings OpenAI",
       "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
       "typeVersion": 1.2,
       "position": [
-        1240,
-        340
+        1360,
+        48
       ],
-      "parameters": {
-        "model": "text-embedding-3-small",
-        "options": {}
-      },
       "credentials": {
         "openAiApi": {
           "id": "khGoYB8EqlxK66fW",
@@ -265,16 +266,57 @@
       }
     },
     {
+      "parameters": {
+        "jsCode": "// Envuelve la respuesta del agente en un objeto `response` conforme a Open Responses.\n\nconst texto = $input.first().json.output ?? '';\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// El modelo lo fija el flujo, no el cliente: un `model` entrante se IGNORA (ADR-0002).\n// Devolver el que mandaron seria mentir sobre quien respondio.\nconst MODELO = 'gpt-5-mini';\n\nreturn [{\n  json: {\n    __status: 200,\n    cuerpo: {\n      id: id('resp'),\n      object: 'response',\n      created_at: Math.floor(Date.now() / 1000),\n      status: 'completed',\n      model: MODELO,\n      output: [\n        {\n          id: id('msg'),\n          type: 'message',\n          status: 'completed',\n          role: 'assistant',\n          content: [{ type: 'output_text', text: texto, annotations: [] }],\n        },\n      ],\n      // El nodo AI Agent de n8n no expone el conteo de tokens al flujo, asi que\n      // estos valores son cero. Se documenta como desviacion conocida en vez de\n      // inventar una estimacion que pareceria un dato medido.\n      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n    },\n  },\n}];"
+      },
       "id": "fmt",
       "name": "Formatear response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
-        -120
-      ],
+        1360,
+        -416
+      ]
+    },
+    {
       "parameters": {
-        "jsCode": "// Envuelve la respuesta del agente en un objeto `response` conforme a Open Responses.\n\nconst texto = $input.first().json.output ?? '';\n\n// `crypto` no existe en el sandbox del task runner de n8n.\n// El id solo tiene que ser opaco y unico, no criptografico.\nconst id = (prefijo) =>\n  prefijo + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// El modelo lo fija el flujo, no el cliente: un `model` entrante se IGNORA (ADR-0002).\n// Devolver el que mandaron seria mentir sobre quien respondio.\nconst MODELO = 'gpt-5-mini';\n\nreturn [{\n  json: {\n    __status: 200,\n    cuerpo: {\n      id: id('resp'),\n      object: 'response',\n      created_at: Math.floor(Date.now() / 1000),\n      status: 'completed',\n      model: MODELO,\n      output: [\n        {\n          id: id('msg'),\n          type: 'message',\n          status: 'completed',\n          role: 'assistant',\n          content: [{ type: 'output_text', text: texto, annotations: [] }],\n        },\n      ],\n      // El nodo AI Agent de n8n no expone el conteo de tokens al flujo, asi que\n      // estos valores son cero. Se documenta como desviacion conocida en vez de\n      // inventar una estimacion que pareceria un dato medido.\n      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n    },\n  },\n}];"
+        "jsCode": "// Traduce un fallo del agente a un error con la forma del spec.\n//\n// Sin este nodo, n8n responde 200 con el CUERPO VACIO cuando algo revienta: un exito\n// aparente que esconde el fallo. Medido en la fase 1 con un ReferenceError, y probable\n// desde que hay una llamada a un servicio externo de por medio.\n//\n// El texto crudo del error NUNCA se devuelve: puede traer nombres de nodos, trazas y\n// hasta el prompt del sistema. Se usa solo para clasificar.\n\nconst crudo = String(\n  $input.first().json?.error?.message ??\n  $input.first().json?.error ??\n  $input.first().json?.message ??\n  ''\n);\n\nconst dice = (...palabras) => palabras.some((p) => crudo.toLowerCase().includes(p));\n\n// 503 y no 502: el Traefik de Easypanel INTERCEPTA los 502 del backend y los sustituye\n// por su propia pagina HTML de \"Service is not reachable\", porque 502 es el codigo que\n// el mismo usa cuando un servicio esta caido. Medido: con 502 el cliente recibe HTML;\n// con 503 y 504 el cuerpo JSON llega intacto.\nlet status = 503;\nlet code = 'upstream_error';\nlet message = 'El modelo no pudo generar una respuesta. Intentalo de nuevo.';\n\nif (dice('timeout', 'timed out', 'etimedout', 'esockettimedout', 'aborted')) {\n  status = 504;\n  code = 'upstream_timeout';\n  message = 'El modelo tardo demasiado en responder. Intentalo de nuevo.';\n} else if (dice('429', 'rate limit', 'quota', 'too many requests')) {\n  status = 429;\n  code = 'rate_limited';\n  message = 'Se alcanzo el limite de peticiones del proveedor. Intentalo en unos momentos.';\n} else if (dice('401', '403', 'api key', 'unauthorized', 'incorrect api key')) {\n  // Es culpa del servidor, no de quien llama: su bearer ya se valido antes.\n  status = 503;\n  code = 'upstream_auth_error';\n  message = 'El servidor no pudo autenticarse contra el proveedor del modelo.';\n}\n\nreturn [{\n  json: {\n    __status: status,\n    cuerpo: { error: { type: 'server_error', code, message, param: null } },\n  },\n}];"
+      },
+      "id": "errag",
+      "name": "Error del agente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nvidia/nemotron-3-super-120b-a12b"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "maxTokens": 4000,
+          "timeout": 120000
+        }
+      },
+      "id": "modelo2",
+      "name": "Modelo de respaldo (NVIDIA)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1104,
+        -144
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YDLnU9ZAyIGqa0l9",
+          "name": "BANO NVIDIA (OpenAI compatible)"
+        }
       }
     }
   ],
@@ -360,6 +402,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Error del agente",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -403,6 +452,28 @@
             "node": "corpus_trayectoria",
             "type": "ai_embedding",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "Error del agente": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modelo de respaldo (NVIDIA)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente",
+            "type": "ai_languageModel",
+            "index": 1
           }
         ]
       ]
