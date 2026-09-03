@@ -23,17 +23,19 @@ Son las que más pesan en una entrevista técnica: convierten "construí un agen
 en "construí un agente que atiende a N personas".
 
 1.1  ¿Cuántos clientes o conversaciones atiende Sting AI? (al día, al mes, o total)
-R:
+R: llego a atender 3 salones de belleza la vez con agendacion de citas diaria
 
 1.2  ¿Qué volumen procesa SATS? (expedientes al día/semana, o páginas)
-R:
+R: cientos de paginas a la semana, ya que son docuemnetos gubernamentales grandes
 
 1.3  ¿Qué resultado medible obtuvo el cliente de USAIGE con el agente de la base
      industrial? (ahorro, tiempo, incidencias detectadas… lo que tengas)
-R:
+R: incidencias detectadas, mantenimiento predictivo y preventivo, respuestas al momento verificadas sobre sus equipos
 
 1.4  ¿Cuánto tiempo te tomó construir cada uno? (Sting AI / SATS / el de USAIGE)
-R:
+R: Sting ai varios meses al ser mi primer proyecto de ia y mas ambisioso ya que eran chatbots por texto y voz, usaba twilio, n8n sheets, eleven labs, retell ai, whatsapp, evolution api, entre otras tecnologoas
+Sats de igual formas varios meses, ya que es una herramienta que corre en local sellada sin acceso a internet ni modelos de ia, es unicamente python y librerias de contexto, que testan de forma segura e irreversible datos personales para asi generar una version oficial
+y Usaige lleva varios meses en constante cambio y desarrollo
 
 
 ================================================================
@@ -43,24 +45,24 @@ Esto es lo primero que pregunta un reclutador y el corpus no lo dice.
 
 2.1  ¿Has liderado equipos o tenido gente a tu cargo? Si sí, ¿cuántas personas y
      en qué contexto?
-R:
+R: OMITIR
 
 2.2  En Sting AI, SATS y USAIGE, ¿trabajaste solo o con equipo? Di cuál en cada uno.
-R:
+R: unicamente en usaige ha sido trabajo en equipo, ya que debo establecer conexiones con los compañeroes encargados de monitorear servidores, hardware, bases de datos entre otros
 
 2.3  ¿Has trabajado con clientes internacionales o sólo en México?
-R:
+R: Mexico
 
 2.4  ¿En qué ciudad vives y estás dispuesto a mudarte? ¿Trabajo remoto, híbrido,
      presencial?
-R:
+R: vivo en San Nicolas de los garza , Nuevo Leon mex, y me interensa el trabajo en cualquier modalidad
 
 2.5  ¿Cuál es tu disponibilidad para incorporarte? (inmediata, X semanas…)
-R:
+R: inmediata
 
 2.6  ¿Cuántos años de experiencia profesional cuentas en total, y desde cuándo los
      cuentas? (Western Union 2020 daría ~6; si tú cuentas desde otro punto, dilo)
-R:
+R: 6 años empeze en western unior a los 17 actualmente tengo 23
 
 
 ================================================================
@@ -70,22 +72,22 @@ Ojo con estos: si BANO no encuentra nada, la ausencia se lee como un "no sabe".
 Contestar "no lo he usado" también sirve — es honesto y BANO lo dirá bien.
 
 3.1  ¿Kubernetes? (nivel real, o "no lo he usado")
-R:
+R:no lo he usado directamente unicamente contenedores
 
 3.2  ¿TypeScript o JavaScript en producción? ¿Dónde?
-R:
+R: javascript a nivel n8n
 
 3.3  ¿Pruebas automatizadas y CI/CD? Tu CV presume "suites de evaluación como
      compuerta de liberación", que es exactamente esto, pero el corpus no lo
      conecta. ¿Usas GitHub Actions, pre-commit, gates a mano?
-R:
+R: skills agenticas con acceso a github
 
 3.4  ¿Has hecho fine-tuning de modelos, o sólo consumes APIs?
-R:
+R: bastante fine tuning de modelos conversacionales en mis proyectos
 
 3.5  ¿Qué otras bases de datos además de PostgreSQL y Supabase? (PocketBase,
      Redis, Google Sheets como capa de datos…)
-R:
+R: sheets, y pocket base
 
 
 ================================================================
@@ -95,10 +97,10 @@ R:
 4.1  ¿Ya te titulaste o sigues estudiando? El corpus dice "2021 a 2026" sin
      aclararlo, y es de las primeras cosas que se preguntan. Si el título está en
      trámite, dilo así.
-R:
+R: EN proceso de titulacion , con carta pasante
 
 4.2  ¿Promedio o distinciones académicas que quieras incluir?
-R:
+R: omitir
 
 
 ================================================================
@@ -107,10 +109,10 @@ R:
 
 5.1  ¿Tienes proyectos públicos en GitHub, portafolio o demos que se puedan
      mencionar? (el repositorio de BANO ya es uno)
-R:
+R: si el de este mismo proyecto BANO y mi portafolio general https://stingai.org/Portafoliocv/
 
 5.2  ¿Has publicado artículos, dado charlas, hecho cursos o enseñado a alguien?
-R:
+R: estoy planificando dar clases a niños sobre ia para que aprendan las nuevas tecnologias y dominen el idioma ingles
 
 
 ================================================================
@@ -118,7 +120,7 @@ R:
 ================================================================
 
 6.1  ¿Algo que quieras que BANO sepa de ti y que no haya preguntado?
-R:
+R: tengo un proyecto de venta de relojes, donde utilizo un celular viejo como servidor que recibe mensajes de fb marketplace, los envia a n8n, genera ventas y al cerrar la cita de venta me contacta por whats app
 
 6.2  ¿Algo que NO quieras que diga nunca, aunque se lo pregunten?
-R:
+R: omitir

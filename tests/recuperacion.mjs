@@ -61,7 +61,11 @@ const sinAcentos = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase
 // `contiene`: TODAS las palabras deben aparecer en el texto recuperado.
 const casos = [
   // --- Las dos que exige PLAN.md ---
-  { p: "¿qué proyectos ha hecho?", seccion: ["Proyectos y arquitecturas entregadas", "Experiencia laboral"], contiene: ["sting ai"] },
+  // Se exigia "sting ai" cuando el corpus tenia dos proyectos. Ahora hay cinco y el
+  // top-k ya no puede garantizar UNO concreto sin volverse arbitrario: se exige que
+  // aparezca alguno.
+  { p: "¿qué proyectos ha hecho?", seccion: ["Proyectos y arquitecturas entregadas", "Experiencia laboral"],
+    contieneAlguno: ["sting ai", "sats", "marketplace", "qualcomm", "bano"] },
   { p: "¿sabe de RAG?", contiene: ["rag"] },
 
   // --- Perfil, experiencia, habilidades ---
@@ -96,6 +100,9 @@ for (const c of casos) {
   }
   for (const palabra of c.contiene || []) {
     if (!texto.includes(sinAcentos(palabra))) problemas.push('no aparece "' + palabra + '"');
+  }
+  if (c.contieneAlguno && !c.contieneAlguno.some((x) => texto.includes(sinAcentos(x)))) {
+    problemas.push("no aparece ninguno de: " + c.contieneAlguno.join(", "));
   }
 
   const etiqueta = (c.idioma === "en" ? "[en] " : "") + c.p;
