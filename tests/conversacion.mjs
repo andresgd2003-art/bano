@@ -121,7 +121,13 @@ console.log("memoria encadenada");
 {
   const t1 = preguntar("¿En qué empresa trabaja Andrés actualmente?");
   const t2 = preguntar("¿Y antes de eso?", t1.id);
-  const t3 = preguntar("De la PRIMERA empresa que te pregunté, ¿cómo se llama?", t2.id);
+  // "La primera empresa que te pregunte" es ambiguo: puede leerse como "la primera
+  // que mencionaste" (USAIGE, respuesta al turno 1) o como "la mas antigua de las que
+  // mencionaste" (Western Union, la mas vieja cronologicamente). Medido: el modelo
+  // oscila entre las dos lecturas en corridas distintas de la MISMA secuencia, sin que
+  // cambie el codigo. Se pregunta por el turno explicitamente para no depender de una
+  // lectura del lenguaje que ni el propio test tiene resuelta.
+  const t3 = preguntar("En tu PRIMER turno de esta conversacion, ¿en que empresa dije que trabaja? Cita esa unica empresa.", t2.id);
   check("tres turnos responden 200", t1.status === 200 && t2.status === 200 && t3.status === 200);
   check("el segundo entiende 'antes de eso'", limpio(t2.texto).includes("joyson"), t2.texto.slice(0, 110));
   check("el tercero recuerda el primero", limpio(t3.texto).includes("usaige"), t3.texto.slice(0, 110));

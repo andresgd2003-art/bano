@@ -220,9 +220,9 @@ Este mismo agente. El detalle de cómo está construido vive en el documento de 
 
 ## Formación y certificaciones
 
-Ingeniería Mecatrónica en la Facultad de Ingeniería Mecánica y Eléctrica de la Universidad
-Autónoma de Nuevo León (FIME – UANL), de 2021 a 2026. **En proceso de titulación, con carta
-pasante**: concluyó los estudios y el título está en trámite.
+Estudió Ingeniería Mecatrónica en la Facultad de Ingeniería Mecánica y Eléctrica de la
+Universidad Autónoma de Nuevo León (FIME – UANL), de 2021 a 2026. **En proceso de titulación,
+con carta pasante**: concluyó los estudios y el título está en trámite.
 
 Machine Learning Specialization de Stanford Online y DeepLearning.AI, en curso desde 2026.
 
