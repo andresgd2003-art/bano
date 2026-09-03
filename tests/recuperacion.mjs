@@ -27,11 +27,17 @@ if (!BASE || !TOKEN) {
 }
 
 const dir = mkdtempSync(join(tmpdir(), "bano-rag-"));
-const TOP_K = 3;
+
+// VENTANA es lo que el gate exige: el fragmento correcto debe estar en el top-3.
+// MEDIR_K es lo que se pide al recuperador: mas resultados, para poder calcular el
+// margen aunque el correcto caiga fuera de la ventana. Separarlos permite ver
+// "pasa por poco" y "falla por poco", que es lo que un pasa/falla esconde.
+const VENTANA = 3;
+const MEDIR_K = 6;
 
 function buscar(pregunta) {
   const f = join(dir, "q.json");
-  writeFileSync(f, JSON.stringify({ pregunta, top_k: TOP_K }));
+  writeFileSync(f, JSON.stringify({ pregunta, top_k: MEDIR_K }));
   let raw;
   try {
     raw = execFileSync("curl", ["-s", "-m", "120", "-X", "POST", BASE + "/buscar",
@@ -85,18 +91,33 @@ const casos = [
 ];
 
 console.log("");
-console.log("Corpus de BANO -> " + BASE + "/buscar   (top-k " + TOP_K + ")");
+console.log("Corpus de BANO -> " + BASE + "/buscar   (ventana " + VENTANA + ", se miden " + MEDIR_K + ")");
 console.log("");
 
+// Un resultado es RELEVANTE por si solo si cumple los criterios del caso sin ayuda
+// de sus vecinos. Es mas exigente que el pasa/falla, que mira el texto de todos
+// juntos, y es lo que permite hablar de "el fragmento correcto".
+function relevante(res, c) {
+  const t = sinAcentos(res.texto);
+  if (c.seccion && !c.seccion.includes(res.seccion)) return false;
+  if (c.contiene && !c.contiene.every((x) => t.includes(sinAcentos(x)))) return false;
+  if (c.contieneAlguno && !c.contieneAlguno.some((x) => t.includes(sinAcentos(x)))) return false;
+  return Boolean(c.seccion || c.contiene || c.contieneAlguno);
+}
+
 let fallosIdioma = 0;
+const margenes = [];
+let fueraDeVentana = 0;
+
 for (const c of casos) {
   const r = buscar(c.p);
-  const secciones = r.map((x) => x.seccion);
-  const texto = sinAcentos(r.map((x) => x.texto).join(" "));
+  const ventana = r.slice(0, VENTANA);
+  const secciones = ventana.map((x) => x.seccion);
+  const texto = sinAcentos(ventana.map((x) => x.texto).join(" "));
 
   const problemas = [];
   if (c.seccion && !c.seccion.some((s) => secciones.includes(s))) {
-    problemas.push("ninguna seccion esperada en el top-k (salieron: " + secciones.join(", ") + ")");
+    problemas.push("ninguna seccion esperada en la ventana (salieron: " + secciones.join(", ") + ")");
   }
   for (const palabra of c.contiene || []) {
     if (!texto.includes(sinAcentos(palabra))) problemas.push('no aparece "' + palabra + '"');
@@ -105,9 +126,23 @@ for (const c of casos) {
     problemas.push("no aparece ninguno de: " + c.contieneAlguno.join(", "));
   }
 
+  // Margen = distancia del mejor INCORRECTO menos la del mejor CORRECTO.
+  // Positivo: el correcto gana por ese margen. Negativo: un incorrecto lo supera.
+  const ok = r.find((x) => relevante(x, c));
+  const mal = r.find((x) => !relevante(x, c));
+  const pos = ok ? r.indexOf(ok) + 1 : null;
+  const margen = ok && mal ? mal.distancia - ok.distancia : null;
+  if (margen !== null) margenes.push(margen);
+  if (pos === null || pos > VENTANA) fueraDeVentana++;
+
+  const medida = pos === null
+    ? "  (el fragmento correcto no salio en " + MEDIR_K + ")"
+    : "  puesto " + pos + ", d=" + ok.distancia.toFixed(4) +
+      (margen === null ? "" : ", margen " + (margen >= 0 ? "+" : "") + margen.toFixed(4));
+
   const etiqueta = (c.idioma === "en" ? "[en] " : "") + c.p;
   if (problemas.length === 0) {
-    console.log("  ok    " + etiqueta);
+    console.log("  ok    " + etiqueta + medida);
   } else {
     console.log("  FALLA " + etiqueta + " -> " + problemas.join("; "));
     fallos++;
@@ -119,6 +154,18 @@ console.log("");
 if (fallosIdioma > 0) {
   console.log("Aviso: " + fallosIdioma + " de los fallos son preguntas en ingles contra un corpus");
   console.log("en espanol. Si se repiten, la solucion es un corpus bilingue.");
+  console.log("");
+}
+// Resumen comparable entre corridas: es lo que permite decir si un cambio en el
+// troceado mejoro o empeoro, en vez de repetir "13/13" antes y despues.
+if (margenes.length) {
+  const suma = margenes.reduce((a, b) => a + b, 0);
+  const ordenados = [...margenes].sort((a, b) => a - b);
+  console.log("MEDIDA  margen medio " + (suma / margenes.length).toFixed(4) +
+    " | peor " + ordenados[0].toFixed(4) +
+    " | negativos " + margenes.filter((m) => m < 0).length +
+    " | fuera de la ventana " + fueraDeVentana +
+    " | casos medidos " + margenes.length + "/" + casos.length);
   console.log("");
 }
 console.log(fallos === 0 ? "TODO VERDE (" + casos.length + " casos)" : fallos + " FALLO(S) de " + casos.length);
