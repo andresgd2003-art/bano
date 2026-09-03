@@ -230,10 +230,16 @@ Certificaciones:
 
 - AWS Certified AI Practitioner — Amazon Web Services, 2026
 - AWS Certified Cloud Practitioner — Amazon Web Services, 2026
-- n8n Nivel 2 — n8n.io, 2026
+- n8n Nivel 2 (Advanced Workflow Creator) — n8n.io, 2026
 - Google IT Support Professional Certificate — Google, 2025
 - AI Upskilling Certificate: Hands-On Development from Model to App — Qualcomm Academy y
   Arduino, 2026
+- Claude Code in Action — Anthropic Education, 2026: uso de Claude Code y agentes autónomos
+  para desarrollo de software.
+- Master PLC Programming — Alison, 2025: lógica Ladder, diagrama de bloques, entradas y
+  salidas.
+- STPS DC-3 — Ingeniería y Automatización Flores, 2026: programación de PLC y lógica
+  escalera, constancia oficial de la Secretaría del Trabajo y Previsión Social.
 
 ## Trabajo público y divulgación
 
