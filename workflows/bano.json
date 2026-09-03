@@ -106,8 +106,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -64,
-        -400
+        1392,
+        208
       ]
     },
     {
@@ -122,8 +122,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -176,
-        208
+        400,
+        224
       ]
     },
     {
@@ -138,7 +138,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        448,
+        2432,
         208
       ]
     },
@@ -190,8 +190,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1776,
-        -480
+        1856,
+        -496
       ],
       "onError": "continueErrorOutput"
     },
@@ -213,8 +213,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1408,
-        -256
+        1488,
+        -272
       ],
       "credentials": {
         "openAiApi": {
@@ -236,8 +236,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1.3,
       "position": [
-        1904,
-        -208
+        1984,
+        -224
       ],
       "credentials": {
         "postgres": {
@@ -255,8 +255,8 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
       "typeVersion": 1.2,
       "position": [
-        1904,
-        -64
+        1984,
+        -80
       ],
       "credentials": {
         "openAiApi": {
@@ -274,8 +274,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
-        -528
+        2240,
+        -544
       ]
     },
     {
@@ -287,8 +287,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
-        -384
+        2240,
+        -400
       ]
     },
     {
@@ -309,8 +309,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1584,
-        -256
+        1664,
+        -272
       ],
       "credentials": {
         "openAiApi": {
@@ -332,7 +332,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1408,
+        944,
         -480
       ],
       "alwaysOutputData": true,
@@ -347,15 +347,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Decide a que conversacion pertenece este turno.\n//\n// Si `previous_response_id` resolvio a una fila, se hereda su `conversation_id`.\n// Si no llego, o no existe, se abre una conversacion nueva.\n//\n// Que un id desconocido responda 400 en vez de abrir una conversacion nueva es\n// otro ticket; aqui todavia se comporta de la forma permisiva.\n\nconst turno = $('Validar entrada').first().json;\nconst fila = $input.first().json ?? {};\n\nconst nuevo = () =>\n  'conv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\n// Si la base fallo, `Resolver conversacion` deja pasar su error como item.\n// Se trata igual que \"no encontrado\": conversacion nueva, sin memoria previa,\n// pero el turno se responde. Es preferible a no responder.\nconst conversation_id = fila.conversation_id || nuevo();\n\nreturn [{\n  json: {\n    __status: 200,\n    pregunta: turno.pregunta,\n    previous_response_id: turno.previous_response_id,\n    conversation_id,\n    conversacion_nueva: !fila.conversation_id,\n    t0: turno.t0,\n  },\n}];"
+        "jsCode": "// Decide a que conversacion pertenece este turno.\n//\n// Si no llego `previous_response_id`, se abre una conversacion nueva.\n// Si llego y resolvio, se hereda su `conversation_id`.\n// Si llego y NO resolvio, se responde 400: callar y empezar de cero seria peor que\n// fallar, porque el evaluador creeria que BANO perdio la memoria a mitad de la\n// conversacion, sin saber por que.\n//\n// Un id deja de resolver por dos motivos: no existio nunca, o caduco. La limpieza\n// borra los turnos de mas de 30 dias (flujo \"BANO - Limpieza de turnos\").\n\nconst turno = $('Validar entrada').first().json;\nconst fila = $input.first().json ?? {};\n\nconst pedido = String(turno.previous_response_id || '').trim();\nconst encontrado = fila.conversation_id;\n\n// Si la base fallo, `Resolver conversacion` deja pasar su error como item. Se\n// distingue de \"no encontrado\": ahi la culpa es del servidor, no de quien llama,\n// y es preferible responder sin memoria a rechazar un id que quiza si existe.\nconst baseFallo = Boolean(fila.error);\n\nif (pedido && !encontrado && !baseFallo) {\n  return [{\n    json: {\n      __status: 400,\n      cuerpo: {\n        error: {\n          type: 'invalid_request_error',\n          code: 'previous_response_not_found',\n          message: 'El `previous_response_id` no existe o ya caduco. Las conversaciones se conservan 30 dias.',\n          param: 'previous_response_id',\n        },\n      },\n    },\n  }];\n}\n\nconst nuevo = () =>\n  'conv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);\n\nreturn [{\n  json: {\n    __status: 200,\n    pregunta: turno.pregunta,\n    previous_response_id: pedido,\n    conversation_id: encontrado || nuevo(),\n    conversacion_nueva: !encontrado,\n    t0: turno.t0,\n  },\n}];"
       },
       "id": "decidir",
       "name": "Decidir conversacion",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1600,
-        -480
+        1120,
+        -464
       ]
     },
     {
@@ -369,8 +369,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
       "position": [
-        1760,
-        -256
+        1840,
+        -272
       ]
     },
     {
@@ -409,6 +409,40 @@
       "position": [
         2640,
         16
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.__status }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "esvalido2",
+      "name": "Conversacion resuelta",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1264,
+        -496
       ]
     }
   ],
@@ -570,17 +604,6 @@
         ]
       ]
     },
-    "Decidir conversacion": {
-      "main": [
-        [
-          {
-            "node": "Agente",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Memoria": {
       "ai_memory": [
         [
@@ -619,6 +642,35 @@
         [
           {
             "node": "Registrar turno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir conversacion": {
+      "main": [
+        [
+          {
+            "node": "Conversacion resuelta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversacion resuelta": {
+      "main": [
+        [
+          {
+            "node": "Agente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder",
             "type": "main",
             "index": 0
           }
