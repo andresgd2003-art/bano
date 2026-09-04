@@ -53,6 +53,12 @@ function cliente(persona, historial) {
   writeFileSync(f, JSON.stringify({
     model: "nvidia/nemotron-3-super-120b-a12b",
     max_tokens: 300,
+    // Sin esto, el 120B a veces mete su cadena de razonamiento COMPLETA dentro de
+    // `message.content` en vez de en `reasoning_content` (visto en produccion: turnos
+    // de "usuario" que eran parrafos enteros de "Okay, let me think..."). BANO
+    // terminaba respondiendo a esa basura, no a la pregunta real -- un fallo del
+    // arnes de pruebas, no del agente. Verificado: con esto, `content` sale limpio.
+    chat_template_kwargs: { thinking: false },
     messages: [
       { role: "system", content: "Eres un usuario probando un agente que habla de la trayectoria profesional de Andres Gallegos Diaz. " + persona + " Escribe UNICAMENTE tu siguiente mensaje al agente, sin comillas ni explicaciones. Maximo dos frases." },
       ...historial,

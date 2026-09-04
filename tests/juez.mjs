@@ -79,33 +79,41 @@ diga "BANO" de forma literal. No la descartes como fuera de contexto por eso.`;
 
   // NVIDIA responde 503 ("Service temporarily overloaded") de vez en cuando; es transitorio,
   // no un fallo real del juez, y no debe tumbar una corrida completa por un hipo de red.
+  // Dos fallos transitorios distintos, y los dos merecen reintento:
+  //  1. NVIDIA responde 503/429 ("Service temporarily overloaded"): un hipo de red.
+  //  2. El modelo razona tanto que se queda sin margen y devuelve SOLO razonamiento, sin
+  //     el JSON del veredicto. Visto en produccion en casos con transcripciones largas.
+  //     Antes esto lanzaba y tumbaba el gate; ahora se reintenta, porque el mismo caso
+  //     suele salir bien en el segundo intento.
   let contenido;
+  let m = null;
   let ultimoError;
   for (let intento = 1; intento <= 3; intento++) {
     const raw = curl(["-s", "-m", "180", "-H", "Authorization: Bearer " + NVIDIA,
       "-H", "Content-Type: application/json", "--data-binary", "@" + f,
       "https://integrate.api.nvidia.com/v1/chat/completions"], "NVIDIA");
-    try {
-      contenido = JSON.parse(raw).choices[0].message.content;
-      ultimoError = null;
-      break;
-    } catch {
-      ultimoError = raw;
-      if (/overloaded|503|rate.?limit|429/i.test(raw) && intento < 3) {
-        // Espera sincrona sin depender de un binario externo (timeout/sleep no son
-        // portables entre Windows y POSIX de la misma forma).
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, intento * 3000);
-        continue;
-      }
-      break;
+
+    let legible = false;
+    try { contenido = JSON.parse(raw).choices[0].message.content; legible = true; }
+    catch { ultimoError = raw; }
+
+    if (legible) {
+      m = String(contenido).match(/\{[^{}]*"veredicto"[^{}]*\}/s);
+      if (m) { ultimoError = null; break; }
+      ultimoError = "sin JSON de veredicto: " + String(contenido).slice(0, 200);
+    } else if (!/overloaded|503|rate.?limit|429/i.test(raw)) {
+      break; // error no transitorio: no tiene sentido insistir
+    }
+
+    if (intento < 3) {
+      // Espera sincrona sin depender de un binario externo (timeout/sleep no son
+      // portables entre Windows y POSIX de la misma forma).
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, intento * 3000);
     }
   }
-  if (ultimoError !== null && ultimoError !== undefined) {
-    throw new Error("El juez devolvio una respuesta ilegible tras reintentos: " + ultimoError.slice(0, 200));
+  if (!m) {
+    throw new Error("El juez no devolvio un veredicto tras 3 intentos: " + String(ultimoError).slice(0, 200));
   }
-
-  const m = contenido.match(/\{[^{}]*"veredicto"[^{}]*\}/s);
-  if (!m) throw new Error("El juez no devolvio un veredicto en formato JSON: " + contenido.slice(0, 300));
 
   let v;
   try { v = JSON.parse(m[0]); } catch { throw new Error("JSON del juez invalido: " + m[0]); }
@@ -119,9 +127,32 @@ diga "BANO" de forma literal. No la descartes como fuera de contexto por eso.`;
   const CODIGOS_INVISIBLES = [0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x061c, 0xfeff];
   let crudo = String(v.veredicto || "");
   for (const codigo of CODIGOS_INVISIBLES) crudo = crudo.split(String.fromCodePoint(codigo)).join("");
-  crudo = crudo.toUpperCase();
+  crudo = crudo.toUpperCase().replace(/[^A-Z_]/g, "");
   const OPCIONES = ["NO_SE_PUEDE_DECIDIR", "NO_CUMPLE", "CUMPLE"]; // mas especifico primero
-  const normalizado = OPCIONES.find((o) => o.startsWith(crudo) || crudo.startsWith(o));
+
+  // Primero por prefijo, que cubre el truncado ("CUMPL").
+  let normalizado = OPCIONES.find((o) => o.startsWith(crudo) || crudo.startsWith(o));
+
+  // Si no, por distancia de edicion: el modelo tambien DUPLICA letras ("CUMPLLE", visto en
+  // produccion), y eso no es un prefijo de nada. Un veredicto claro no se descarta por una
+  // letra de mas: se acepta si esta a una o dos ediciones de una sola de las tres opciones.
+  if (!normalizado) {
+    const distancia = (a, b) => {
+      const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+      for (let j = 0; j <= b.length; j++) d[0][j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1,
+            d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+      }
+      return d[a.length][b.length];
+    };
+    const cerca = OPCIONES.filter((o) => distancia(crudo, o) <= 2);
+    // Solo si UNA opcion queda cerca: si dos empatan, el veredicto es ambiguo de verdad.
+    if (cerca.length === 1) normalizado = cerca[0];
+  }
+
   if (!normalizado) {
     throw new Error("Veredicto fuera de las tres opciones: " + JSON.stringify(v));
   }

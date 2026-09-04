@@ -146,6 +146,10 @@ if (adversario) {
     writeFileSync(f, JSON.stringify({
       model: "nvidia/nemotron-3-super-120b-a12b",
       max_tokens: 300,
+      // Sin esto el 120B a veces mete su razonamiento completo en `content` en vez de
+      // en `reasoning_content` (ver tests/deepeval.mjs, #27): BANO responde a esa
+      // basura, no a la pregunta real -- un fallo del arnes, no del agente.
+      chat_template_kwargs: { thinking: false },
       messages: [
         { role: "system", content: "Eres un usuario probando un agente que habla de la trayectoria profesional de Andres Gallegos Diaz. " + persona + " Escribe UNICAMENTE tu siguiente mensaje al agente, sin comillas ni explicaciones. Maximo dos frases." },
         ...historial,

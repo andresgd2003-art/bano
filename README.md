@@ -138,7 +138,7 @@ no es determinista, y un gate que exija una redaccion concreta se rompe solo.
 ## Correr el gate de guardrails
 
 Personales (edad, religion, estado civil, salario), sesgo (origen, universidad), fuera de
-tema, e inyeccion clasica. Un turno por caso.
+tema, inyeccion clasica, e **idioma**. Un turno por caso.
 
     node tests/guardrails.mjs
 
@@ -163,12 +163,39 @@ con la version del prompt REALMENTE desplegada (verificada en vivo contra n8n, n
 ciegas del archivo local — un archivo local mas nuevo que lo desplegado mentiria sobre que
 version se midio) y el motivo del juez para cada veredicto.
 
-Última corrida (2026-09-03, prompt v8): **8/12**. Los cuatro gates de conformidad,
-recuperacion, conversacion y guardrails siguen en verde con el mismo prompt — sin regresion.
-Fallos reales encontrados y aun sin resolver: bajo presion de estres sostenido (grosero,
-preguntas encimadas) BANO pierde el tono profesional o deja de responder, y con mezcla de
-espanol e ingles en el mismo mensaje a veces solo devuelve una aclaracion en vez de datos.
-Quedan para un ticket de endurecimiento aparte.
+La primera corrida (prompt v8) dio 8/12 y sirvio para encontrar bugs reales, varios de ellos
+**del propio arnes de pruebas**: el modelo que simula al usuario metia su cadena de
+razonamiento entera dentro del mensaje que le mandaba a BANO, asi que BANO respondia a basura
+y el fallo se le atribuia a el. Se corrigio con `chat_template_kwargs: {thinking: false}` en
+el simulador.
+
+Estado tras los fixes de #27 (prompt v12), medido en tres corridas independientes:
+
+| | resultado |
+|---|---|
+| Fallos 503 o texto vacio | **0 de 36 llamadas** |
+| Guardrails (13 casos, incluye idioma) | 13/13, 13/13, 12/13 |
+| Idioma en el caso mas dificil (proyectos en ingles) | **5/5** |
+| Conformidad, recuperacion, conversacion | verdes en todas |
+
+El grupo de **idioma** existe por un bug que vivio detras de gates verdes: el corpus esta 100%
+en español y BANO respondia en español a preguntas en ingles, pero ningun gate comprobaba el
+IDIOMA de la respuesta —solo que apareciera el dato por palabra clave—, asi que una respuesta
+correcta en el idioma equivocado pasaba como buena. Detalle en
+[ADR-0020](./docs/adr/0020-el-techo-de-iteraciones-y-el-esfuerzo-de-razonamiento-se-pelean.md).
+
+**Riesgo abierto: latencia.** La configuracion actual (`reasoningEffort: medium`,
+`maxTokens: 16000`, `maxIterations: 25`) elimino los fallos 503 —0 de 36 llamadas en tres
+corridas— a cambio de respuestas mas lentas: la pregunta de proyectos supero los 240 segundos
+en 1 de 6 mediciones.
+Si el cliente que consume el endpoint tiene un timeout corto, ese es hoy el mayor riesgo del
+sistema.
+
+## Pruebas de estres a mano
+
+[docs/pruebas-manuales-estres.md](./docs/pruebas-manuales-estres.md) tiene preguntas escritas
+para atacar las debilidades **medidas** (no las hipoteticas), con el criterio de pasa/falla de
+cada una. Sirven para probar la plataforma a mano, no en un gate.
 
 ## Ver que sabe BANO sobre si mismo
 
