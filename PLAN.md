@@ -1,7 +1,14 @@
-# BANO — Plan por fases
+# BANO — Cómo se construyó, fase por fase
 
-Reescrito tras la investigación. Sustituye al plan inicial: la Fase 0 desapareció (la
-infraestructura ya existe) y el streaming subió de "opcional al final" a requisito de conformidad.
+**Estado: completo y operativo.** Las fases que definían el sistema (endpoint conforme, corpus e
+ingesta, agente con memoria, guardrails y evaluación) están hechas y verificadas contra la
+plataforma cliente real. Lo que este documento llamaba Fase 4 (streaming), Fase 6 (tarjeta de
+agente) y Fase 7 (multimodal) **no son pendientes que bloqueen nada**: son mejoras opcionales, y
+se listan como tales al final. El registro de fases se conserva como historia de cómo se llegó
+aquí, no como una lista de tareas abierta.
+
+Reescrito tras la investigación inicial. Sustituyó al primer plan: la Fase 0 desapareció (la
+infraestructura ya existía).
 
 ## Contrato verificado (openresponses.org)
 
@@ -126,21 +133,35 @@ y fuera de tema. El LLM-cliente sale por NVIDIA, no por la credencial compartida
 
 **Hecho cuando:** la batería pasa y sus resultados están en el repo.
 
-## Fase 6 — Descubrimiento y entrega
+## Fase 6 — Descubrimiento y entrega (hecha, salvo la tarjeta A2A)
 
-`/.well-known/agent-card.json` como segundo webhook (tarjeta A2A: `protocolVersion`, `name`,
-`url`, `capabilities`, `skills`, `securitySchemes`). Documento de arquitectura → PDF → corpus,
-para que BANO hable de sí mismo. README con qué del spec se cubre y qué no.
+**Hecho:** el documento de arquitectura vive en el corpus y BANO habla de sí mismo con datos
+—incluidos sus 19 nodos, uno por uno—; el README dice qué del spec se cubre y qué no, con
+imágenes del flujo.
 
-## Fase 7 — Multimodal (última, por decisión explícita)
+**Mejora opcional pendiente:** publicar `/.well-known/agent-card.json` como segundo webhook
+(tarjeta A2A: `protocolVersion`, `name`, `url`, `capabilities`, `skills`, `securitySchemes`).
+Es metadata de descubrimiento para interoperar con otros agentes; el endpoint funciona
+plenamente sin ella.
 
-Entrada de imágenes (`meta/llama-3.2-90b-vision-instruct`) y de archivos. Efímeros: nunca
-entran al corpus (ADR-0003). Hasta aquí `defaultInputModes` es sólo `text/plain`.
+## Fase 7 — Multimodal (mejora opcional, por decisión explícita)
 
-Entrega de archivos: **URL, no base64**. Base64 infla el archivo un 33% y obliga a n8n a
-parsearlo entero en memoria, en una caja de un core con ~2.3 GB libres compartidos con SATS
-y el bot de ventas. Con URL la peticion queda pequena y BANO descarga solo lo que necesita.
-Riesgo asumido: el enlace puede ser temporal o exigir autenticacion.
+No implementada a propósito: hoy BANO es sólo texto y lo dice cuando le preguntan. Queda como
+extensión futura, no como pendiente.
+
+Si algún día se hace: entrada de imágenes (`meta/llama-3.2-90b-vision-instruct`) y de archivos,
+efímeros, que nunca entran al corpus (ADR-0003). Entrega de archivos por **URL, no base64**:
+base64 infla el archivo un 33% y obliga a n8n a parsearlo entero en memoria, en una caja de un
+core con ~2.3 GB libres compartidos con SATS y el bot de ventas.
+
+## Otras mejoras opcionales, descubiertas midiendo
+
+- **Corrección determinista de idioma** (ADR-0022): una enumeración larga pedida en inglés se
+  desliza al español ~1 de cada 6 veces. El prompt tocó su techo; cerrarlo pide una comprobación
+  de idioma en el nodo de salida.
+- **Streaming SSE** (antes Fase 4): descartado por alcance. La plataforma renderiza el JSON sin
+  problema, y el stream que n8n puede dar sería completo de una vez, sin el efecto de escritura
+  token a token que es lo único que un humano notaría.
 
 ---
 

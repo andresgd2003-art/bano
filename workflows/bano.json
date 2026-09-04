@@ -96,7 +96,7 @@
     },
     {
       "parameters": {
-        "content": "## BANO — endpoint compatible con Open Responses\n\nExpone `POST /webhook/bano/v1/responses` siguiendo el spec de https://www.openresponses.org\nLa plataforma cliente toma la **URL base** (`.../webhook/bano/v1`) y le anade `/responses`, por eso el path\ntermina asi y **no hace falta tocar Traefik**.\n\n**Fase 1 (actual):** el endpoint es conforme pero todavia NO piensa: devuelve un eco.\nEl agente, el RAG y la memoria llegan en las fases 2 y 3.\n\n**No editar a mano sin actualizar el repo:** https://github.com/andresgd2003-art/bano\nEl flujo esta versionado en `workflows/bano.json` y `tests/conformidad.mjs` valida el spec (23 casos).\nSi cambias algo aqui, corre el gate antes de darlo por bueno.",
+        "content": "## BANO — endpoint compatible con Open Responses\n\nExpone `POST /webhook/bano/v1/responses` siguiendo el spec de https://www.openresponses.org\nLa plataforma cliente toma la **URL base** (`.../webhook/bano/v1`) y le anade `/responses`, por eso el path\ntermina asi y **no hace falta tocar Traefik**.\n\n**Completo y operativo:** endpoint conforme y autenticado, con agente RAG sobre el corpus,\nmemoria por conversacion, guardrails medidos por un juez y varias baterias de evaluacion.\n\n**No editar a mano sin actualizar el repo:** https://github.com/andresgd2003-art/bano\nEl flujo esta versionado en `workflows/bano.json` y `tests/conformidad.mjs` valida el spec.\nSi cambias algo aqui, corre el gate antes de darlo por bueno.",
         "height": 304,
         "width": 812,
         "color": 4

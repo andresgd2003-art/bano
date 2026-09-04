@@ -30,15 +30,28 @@ llamada al modelo.
 
 ## Estado
 
-**Fases 1, 2, 3 y 5 completas.** El endpoint es conforme, esta autenticado, responde con un
-agente que consulta el corpus y recuerda la conversacion, y tiene guardrails medidos con un
-juez de modelo (personales, sesgo, fuera de tema, inyeccion) mas una bateria DeepEval
-multi-turno de seis familias de ataque. Falta publicar la tarjeta de agente (fase 6). El
-streaming quedo descartado.
+**Operativo y completo.** El endpoint es conforme con el estándar, está autenticado, responde
+con un agente que consulta el corpus y recuerda la conversación, y tiene guardrails medidos por
+un juez de modelo (datos personales, sesgo, fuera de tema, inyección, idioma) más varias
+baterías multi-turno: adversaria de seis familias de ataque, de conocimiento y definiciones, de
+estrés, y de inyección técnica (SQL y expresiones de n8n, todas contenidas). Verificado de punta
+a punta contra la plataforma cliente real, no sólo con `curl`.
 
-Ver [PLAN.md](./PLAN.md) para las 7 fases y su criterio de "hecho".
+El sistema cumple su propósito sin nada pendiente que lo bloquee. Lo que queda son **mejoras
+opcionales**, no fases sin terminar:
 
-Verificado de punta a punta contra la plataforma cliente real, no sólo con `curl`.
+- **Corrección determinista de idioma.** Una enumeración larga pedida en inglés se desliza al
+  español ~1 de cada 6 veces; el prompt tocó su techo ahí (ADR-0022). Cerrarlo del todo pide
+  una comprobación de idioma en el nodo de salida, no más prompt.
+- **Tarjeta de agente A2A** (`/.well-known/agent-card.json`). Metadata de descubrimiento para
+  interoperar con otros agentes; el endpoint funciona igual sin ella.
+- **Streaming SSE.** Descartado por decisión de alcance: la plataforma renderiza el JSON sin
+  problema y lo que se podría dar sería un stream completo de una vez, sin el efecto de escritura
+  token a token (ver desviaciones más abajo).
+- **Multimodal** (imágenes y archivos). Hoy BANO es sólo texto, a propósito; queda como
+  extensión futura.
+
+Ver [PLAN.md](./PLAN.md) para el recorrido de cómo se construyó.
 
 ## Qué del spec está cubierto
 
@@ -49,9 +62,9 @@ Verificado de punta a punta contra la plataforma cliente real, no sólo con `cur
 | `output` con `id`, `type`, `status` y content parts `output_text` | sí |
 | `usage` | presente, pero en cero: ver desviaciones |
 | Errores `{type, code, message, param}` | sí, con `param` señalando el campo culpable |
-| `previous_response_id` | fase 3 |
+| `previous_response_id` | sí |
 | Streaming SSE | **no**, ver desviaciones |
-| Imágenes y archivos | fase 7 |
+| Imágenes y archivos | no (mejora opcional) |
 | WebSocket, `/responses/compact`, function calling | fuera de alcance |
 
 ### Desviaciones conocidas
@@ -352,7 +365,7 @@ BANO no puede responder, separando los huecos reales de los que son deliberados.
 
 ## Estructura
 
-    PLAN.md              las 7 fases y su criterio de "hecho"
+    PLAN.md              cómo se construyó, fase por fase
     CONTEXT.md           glosario del dominio
     docs/adr/            decisiones de arquitectura y por qué
     workflows/bano.json  el flujo de n8n, exportado (sin credenciales)
