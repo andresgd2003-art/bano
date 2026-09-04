@@ -10,6 +10,24 @@ Andrés Gallegos Díaz, expuesto como un endpoint compatible con
 
     {"input": "hola"}
 
+## El flujo, en imágenes
+
+El flujo completo en n8n: la entrada se autentica y valida, la memoria se resuelve contra
+Postgres, un portero único descarta lo inválido, el agente responde apoyado en cuatro
+capacidades, y la salida se formatea, responde y registra.
+
+![Flujo completo](docs/img/flujo-general.png)
+
+El núcleo: el nodo Agente con sus cuatro capacidades colgando — el modelo principal, el de
+respaldo, la herramienta de búsqueda sobre el corpus, y la memoria.
+
+![El agente y sus capacidades](docs/img/flujo-agente.png)
+
+La rama de entrada: autenticación por hash y los guardias deterministas, antes de gastar una
+llamada al modelo.
+
+![Rama de entrada](docs/img/flujo-entrada.png)
+
 ## Estado
 
 **Fases 1, 2, 3 y 5 completas.** El endpoint es conforme, esta autenticado, responde con un

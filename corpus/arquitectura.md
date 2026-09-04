@@ -73,6 +73,7 @@ en vez de empezar una conversación nueva en silencio.
 ## Sus 19 nodos, uno por uno
 
 Este es el recorrido completo de una petición. Los nodos van en el orden en que se ejecutan.
+Hay capturas del flujo en el repositorio, en `docs/img/`, para quien prefiera verlo dibujado.
 
 ### El camino de entrada: autenticar y validar
 
