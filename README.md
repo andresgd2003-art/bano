@@ -142,14 +142,26 @@ corridas sin cambios dan los mismos números.
 
 ## Reindexar el corpus
 
-El documento viaja en el cuerpo, no por URL, porque se edita seguido:
+El corpus vive en un flujo aparte del endpoint principal (`BANO — Ingesta del corpus`), con dos
+segmentos independientes que comparten la tabla `bano_corpus` pero no se conectan entre sí: uno
+**escribe** el corpus y otro lo **lee**.
+
+**Segmento de escritura** — reindexa. El documento viaja en el cuerpo, no por URL, porque se
+edita seguido. Reejecutar no duplica: borra por documento antes de insertar.
 
     POST <URL base>/ingesta
     Authorization: Bearer <BANO_INGESTA_TOKEN>
 
     {"documento": "trayectoria", "contenido": "<el markdown completo>"}
 
-Reejecutar **no duplica**: borra por documento antes de insertar.
+![Segmento de escritura del corpus](docs/img/ingesta-escritura.png)
+
+**Segmento de lectura** — el endpoint `/buscar`, de sólo lectura, que devuelve los fragmentos
+más parecidos a una consulta sin pasar por el modelo. No es un flujo de prueba: es producción, y
+es lo que `tests/recuperacion.mjs` y `tests/auditoria-corpus.mjs` usan para medir la calidad de
+la recuperación de forma barata y determinista.
+
+![Segmento de búsqueda del corpus](docs/img/ingesta-captura.png)
 
 ## Correr el gate de conversacion
 
