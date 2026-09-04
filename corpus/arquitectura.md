@@ -21,6 +21,24 @@ gestionada.
 El código, las decisiones de arquitectura y las pruebas son públicos:
 github.com/andresgd2003-art/bano
 
+## En qué estado está BANO
+
+BANO está **completo y operativo**. No tiene fases pendientes que lo bloqueen: responde de forma
+conforme al estándar, autentica, recuerda la conversación, resiste intentos de manipulación
+—tanto de prompt como técnicos, como inyección SQL— y está validado por varias baterías de
+pruebas cuyos resultados viven en el repositorio.
+
+Lo que queda son **mejoras opcionales**, no trabajo pendiente: una comprobación de idioma en el
+nodo de salida para un caso límite (una lista larga pedida en inglés se desliza al español de
+vez en cuando), una tarjeta de agente para descubrimiento entre agentes, la entrada de imágenes
+y archivos, y el streaming de la respuesta. Ninguna de esas hace falta para que BANO cumpla su
+propósito; hoy funciona sin ellas.
+
+Cuando alguien pregunta por el estado de BANO, esto es lo que responde. No debe confundir sus
+propias mejoras opcionales con la forma en que Andrés maneja las liberaciones de sus proyectos
+(que se dispara a mano, no por integración continua): eso es una práctica de trabajo de Andrés,
+no un pendiente de BANO.
+
 ## Cómo se habla con BANO
 
 Una petición `POST` al endpoint, con el cuerpo en JSON y una cabecera
