@@ -250,20 +250,33 @@ Ninguno de los dos manda peticiones nuevas: el par startedAt/stoppedAt de cada e
 guardada ES la latencia de punta a punta, y los tiempos por nodo tambien estan ahi. Medir
 cuanto tarda algo no deberia costar cuota de modelo.
 
-Linea base de produccion (379 ejecuciones): p50 13.4 s, p90 47.0 s, p95 69.1 s, maximo 187.9 s.
+**Acota el perfil a la version desplegada.** Un perfil sobre todas las ejecuciones mezcla
+prompts distintos y describe lo que el sistema *era*, no lo que es. Eso paso: una linea base de
+379 ejecuciones dio p90 47.0 s y maximo 187.9 s mezclando los prompts v6 a v15, y sobre esos
+numeros se escribieron dos tickets que resultaron infundados (#29, #30).
 
-El hallazgo que reencuadro el problema: la recuperacion NO es el cuello de botella (0.33 s por
-consulta, 5.6 s de 187.9 s). El nodo del modelo se llevo el 96 %. La latencia es (numero de
-RONDAS del modelo) x (costo por ronda), y las rondas —no las llamadas— son el multiplicador:
+Lo que si quedo establecido, midiendo el sistema actual:
 
-| ejecucion | llamadas | rondas | total | por ronda |
-|---|---|---|---|---|
-| simple | 1 | 2 | 11.6 s | ~5 s |
-| nodos | 8 | 3 | 54.8 s | ~17 s |
-| la peor | 17 | 18 | 187.9 s | ~10 s |
+- La recuperacion NO es el cuello de botella: 0.33 s por consulta, 1.2 s de 25.8 s.
+- El nodo del modelo se lleva el 96 % del tiempo.
+- El modelo ya agrupa sus consultas por si solo: una pregunta de 6 partes hace 7 llamadas en 2
+  rondas, no 7. Nunca hubo nada que paralelizar.
+- El costo por ronda lo manda el **largo de la respuesta generada**, no el contexto de entrada.
+  Misma pregunta, mismas rondas, mismo prompt: pedir "solo los nombres" bajo la latencia un
+  45 % (25.8 s a 14.2 s).
 
-Mismo orden de llamadas, 3.4x la latencia, segun se agrupen en pocas rondas o se serialicen.
-El trabajo pendiente esta en los tickets #29 a #31.
+Latencia actual, medida en el flujo de test con el prompt vigente:
+
+| pregunta | total | rondas |
+|---|---|---|
+| inyeccion (se niega) | 5.1 s | 1 |
+| simple | ~9 s | 2 |
+| proyectos | 25.8 s | 2 |
+| seis partes | 38.4 s | 2 |
+
+Las de enumeracion son lentas a proposito: se decidio conservar el detalle (un proyecto nombrado
+con su resultado medido) antes que la velocidad. Si algun dia se invierte esa prioridad, el
+camino medido es acortar solo las enumeraciones a un renglon por elemento.
 
 ## Auditar el corpus (alcanzabilidad)
 
