@@ -191,6 +191,24 @@ en 1 de 6 mediciones.
 Si el cliente que consume el endpoint tiene un timeout corto, ese es hoy el mayor riesgo del
 sistema.
 
+## Auditar el corpus (alcanzabilidad)
+
+    node tests/auditoria-corpus.mjs
+
+Existe porque el mismo hueco aparecio TRES veces —certificaciones, proyectos y nodos— y las
+tres se descubrio por accidente, cuando un evaluador pregunto: el dato estaba en el corpus,
+pero la consulta natural no traia sus fragmentos, y BANO acababa negando el dato o mandando
+al repositorio.
+
+Recorre las secciones del corpus, las trocea igual que el nodo de ingesta, y mide con el mismo
+top_k=5 que ve el agente: si la seccion es alcanzable preguntando por su tema, y en cuantos
+fragmentos quedo partida (mas de uno = riesgo de responder a medias). No es un gate: no falla
+nada, lista lo que hay que revisar a mano.
+
+Ultima auditoria: 40 secciones, ningun caso grave. El unico residual es la seccion de perfil
+profesional, que trae 1 de sus 2 fragmentos; consecuencia baja porque sus vecinos cubren lo
+mismo.
+
 ## Pruebas de estres a mano
 
 [docs/pruebas-manuales-estres.md](./docs/pruebas-manuales-estres.md) tiene preguntas escritas
