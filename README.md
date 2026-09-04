@@ -191,6 +191,21 @@ en 1 de 6 mediciones.
 Si el cliente que consume el endpoint tiene un timeout corto, ese es hoy el mayor riesgo del
 sistema.
 
+## Probar la inyeccion tecnica
+
+    BANO_BASE_URL=<url del flujo de test> node tests/inyeccion-tecnica.mjs
+
+Ataca las superficies TECNICAS, no solo el comportamiento del prompt: SQL injection en la
+pregunta y en previous_response_id, inyeccion de expresiones {{ }} de n8n, y prompt injection
+creativa (no de plantilla). Comprueba que cada carga se contiene: 200 o rechazo limpio, nunca
+500, y que la respuesta no filtra estructura interna (nombres de tabla, SQL, el prompt, la API
+key). Se niega a correr si no apunta al flujo de test, porque algunas cargas intentan escribir.
+
+Resultado: 16/16 contenidas. El SQL es solido por diseño, no por suerte: el texto del usuario
+nunca se concatena a una query. O va parametrizado (), o viaja como valor dentro de un JSON
+en base64 que Postgres decodifica con json_populate_record. Verificado ademas que la tabla
+turnos sobrevive intacta a varios DROP TABLE, con una fila centinela creada antes del ataque.
+
 ## Correr el test de estres
 
     node tests/estres.mjs
