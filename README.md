@@ -265,62 +265,6 @@ RONDAS del modelo) x (costo por ronda), y las rondas —no las llamadas— son e
 Mismo orden de llamadas, 3.4x la latencia, segun se agrupen en pocas rondas o se serialicen.
 El trabajo pendiente esta en los tickets #29 a #31.
 
-## Verificar los invariantes (un comando)
-
-    node tests/invariantes.mjs                 contra BANO_BASE_URL del .env
-    node tests/invariantes.mjs --con-gates     incluye los cuatro gates (tarda minutos)
-
-Los cinco invariantes que costaron caro, juntos, con codigo de salida distinto de cero si
-alguno falla. Cada uno entro despues de un fallo real y medido en produccion:
-
-- Nunca vacio ni 503 — llego a fallar 2 de cada 12 peticiones (ADR-0017, ADR-0020).
-- Idioma espejo — TODA pregunta en ingles se contestaba en español (#27).
-- Cobertura de enumeracion — negaba que SATS y USAIGE existieran, y explicaba 3 de 19 nodos.
-- Formato — guiones, sin negritas, encabezados ni tablas.
-- Los cuatro gates — se delegan, no se reimplementan.
-
-Existe porque cero regresiones hay que poder comprobarlo TRES veces por cambio, y con cinco
-comandos distintos eso no se hace. Reporta de paso la latencia de sus propias peticiones, que
-no cuesta nada extra medir.
-
-## Flujo de test aparte
-
-    node infra/crear-flujo-test.mjs
-
-Crea (o refresca) una copia del flujo de produccion con su propia ruta de webhook, para medir
-cambios de latencia sin tocar el endpoint que usa el evaluador. Reejecutarlo sobrescribe la
-copia con una fresca de produccion, que es lo que se quiere antes de empezar un experimento.
-
-Usa el mismo token bearer que produccion a proposito: lo que hay que aislar es el endpoint y
-el flujo, no la credencial.
-
-    BANO_BASE_URL=<url del flujo de test> node tests/invariantes.mjs
-    node tests/perfil-latencia.mjs 200 <id del flujo de test>
-
-## Perfilar la latencia
-
-    node tests/perfil-latencia.mjs [cuantas] [workflowId]   percentiles y distribucion
-    node tests/perfil-nodos.mjs <idEjecucion>               desglose por nodo de una
-
-Ninguno de los dos manda peticiones nuevas: el par startedAt/stoppedAt de cada ejecucion ya
-guardada ES la latencia de punta a punta, y los tiempos por nodo tambien estan ahi. Medir
-cuanto tarda algo no deberia costar cuota de modelo.
-
-Linea base de produccion (379 ejecuciones): p50 13.4 s, p90 47.0 s, p95 69.1 s, maximo 187.9 s.
-
-El hallazgo que reencuadro el problema: la recuperacion NO es el cuello de botella (0.33 s por
-consulta, 5.6 s de 187.9 s). El nodo del modelo se llevo el 96 %. La latencia es (numero de
-RONDAS del modelo) x (costo por ronda), y las rondas —no las llamadas— son el multiplicador:
-
-| ejecucion | llamadas | rondas | total | por ronda |
-|---|---|---|---|---|
-| simple | 1 | 2 | 11.6 s | ~5 s |
-| nodos | 8 | 3 | 54.8 s | ~17 s |
-| la peor | 17 | 18 | 187.9 s | ~10 s |
-
-Mismo orden de llamadas, 3.4x la latencia, segun se agrupen en pocas rondas o se serialicen.
-El trabajo pendiente esta en los tickets #29 a #31.
-
 ## Auditar el corpus (alcanzabilidad)
 
     node tests/auditoria-corpus.mjs
