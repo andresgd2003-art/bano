@@ -49,6 +49,10 @@ Antes de USAIGE estuvo en Joyson Safety Systems; antes de Joyson, en Western Uni
 
 ### Ingeniero de IA y Automatización — USAIGE (abril 2026 – actualidad)
 
+USAIGE es una empresa que desarrolla soluciones tecnológicas integrales de hardware y software
+con inteligencia artificial, enfocadas en la gestión y optimización del control energético en
+plantas industriales.
+
 Es dueño de la solución técnica de principio a fin para el cliente: conduce la conversación de
 descubrimiento, diseña la arquitectura, presenta la recomendación, la despliega en la
 infraestructura del cliente y la monitorea en producción.
@@ -76,6 +80,9 @@ volver a desplegarse.
 
 ### Practicante de Gestión de Programas — Joyson Safety Systems (junio 2025 – mayo 2026)
 
+Joyson Safety Systems es un fabricante global de sistemas de seguridad automotriz —bolsas de
+aire, cinturones de seguridad y componentes relacionados— para la industria del automóvil.
+
 Identificó una oportunidad de automatización que nadie había pedido y construyó la solución:
 lee la base de datos de solicitudes de cotización, agrupa los pendientes por responsable y
 emite un correo consolidado por persona. El proceso pasó de 60 minutos a 3, una reducción del
@@ -86,6 +93,9 @@ Studio. Documentó ambas herramientas y capacitó a los usuarios hasta que fuero
 estándar regional.
 
 ### Agente telefónico bilingüe — Western Union (septiembre 2020 – mayo 2021)
+
+Western Union es una empresa global de servicios financieros, conocida sobre todo por las
+transferencias de dinero entre personas y países.
 
 Atención y resolución de incidencias financieras en inglés, con documentación y trazabilidad
 de cada caso.
@@ -154,6 +164,10 @@ técnicas a interlocutores no técnicos, en inglés y español.
 ## Proyectos y arquitecturas entregadas
 
 ### Sting AI — Plataforma agéntica con evaluación automatizada (en producción)
+
+Sting AI es la marca propia de Andrés: el negocio con el que ofrece agentes de IA
+conversacionales y automatización a clientes reales. Bajo ella ha entregado, entre otros, la
+plataforma que se describe aquí. Su portafolio vive en stingai.org.
 
 Arquitectura agéntica de punta a punta que atiende a clientes reales en WhatsApp y Facebook,
 con acceso como herramientas al catálogo, el inventario, los precios y la agenda. Incluye
