@@ -4,7 +4,8 @@
 // de punta a punta real, y la API de n8n la da gratis. Medir asi no gasta cuota de modelo, que
 // es justo lo que no queremos quemar para averiguar cuanto tarda algo.
 //
-// Uso: node tests/perfil-latencia.mjs [cuantas]     (por defecto 300)
+// Uso: node tests/perfil-latencia.mjs [cuantas] [workflowId]
+//      Sin workflowId usa el de produccion; pasale el del flujo de test para medir ahi.
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 
@@ -17,10 +18,9 @@ if (existsSync(".env")) {
 }
 const API = (env.N8N_BASE_URL || "").replace(/\/$/, "");
 const KEY = env.N8N_API_KEY || "";
-const WORKFLOW = env.BANO_WORKFLOW_ID || "PbqHY1VMomVqBJP0";
-if (!API || !KEY) { console.error("Faltan N8N_BASE_URL y N8N_API_KEY"); process.exit(2); }
-
 const objetivo = Number(process.argv[2] || 300);
+const WORKFLOW = process.argv[3] || env.BANO_WORKFLOW_ID || "PbqHY1VMomVqBJP0";
+if (!API || !KEY) { console.error("Faltan N8N_BASE_URL y N8N_API_KEY"); process.exit(2); }
 
 function get(url) {
   const raw = execFileSync("curl", ["-s", "-m", "60", "-H", "X-N8N-API-KEY: " + KEY, url],
