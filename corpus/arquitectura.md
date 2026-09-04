@@ -12,8 +12,9 @@ BANO es un agente conversacional que responde sobre la trayectoria profesional d
 Gallegos Díaz. Lo construyó Andrés. No lo creó ninguna empresa de modelos de lenguaje: el
 modelo es el motor, no el agente.
 
-Está construido sobre **n8n**, la plataforma de automatización, como un único flujo de 23
-nodos. Se expone como un endpoint HTTP compatible con el estándar **Open Responses**
+Está construido sobre **n8n**, la plataforma de automatización, como un único flujo de **19
+nodos funcionales** (más tres notas adhesivas de documentación en el lienzo, que no ejecutan
+nada: 22 en total). Se expone como un endpoint HTTP compatible con el estándar **Open Responses**
 (openresponses.org), y está desplegado en un **VPS propio** de Andrés, no en una nube
 gestionada.
 
@@ -68,6 +69,83 @@ ser mucho más larga: la ventana limita lo que recuerda, no lo que identifica.
 
 Si llega un `previous_response_id` que no existe o ya caducó, BANO responde con un error claro
 en vez de empezar una conversación nueva en silencio.
+
+## Sus 19 nodos, uno por uno
+
+Este es el recorrido completo de una petición. Los nodos van en el orden en que se ejecutan.
+
+### El camino de entrada: autenticar y validar
+
+- **Webhook** — la puerta. Recibe el `POST` en `/webhook/bano/v1/responses` y espera a que otro
+  nodo responda, en vez de contestar de inmediato.
+- **Hashear bearer** — saca el SHA-256 del token que llegó en la cabecera `Authorization`.
+- **Leer token** — trae de una tabla de datos de n8n el hash guardado del token válido.
+- **Autorizar** — compara hash contra hash. Si no coincide, o si falta la cabecera, arma un
+  error 401 con la forma del estándar. Si no hay hash guardado, responde 500 y no deja pasar a
+  nadie: falla cerrado.
+- **Validar entrada** — comprueba que el campo `input` exista y sea un texto o un array de
+  items válido, y saca la pregunta. Aquí viven tres cosas que no dependen del modelo: el
+  límite de 16 000 caracteres de entrada, el filtro determinista que marca posibles intentos de
+  inyección, y el sello de tiempo con el que después se mide la latencia del turno.
+
+### El camino de la memoria: saber a qué conversación pertenece
+
+- **Resolver conversacion** — una consulta a PostgreSQL que hace tres cosas a la vez: traduce
+  el `previous_response_id` recibido a su identificador de conversación, cuenta cuántos turnos
+  lleva esa conversación y cuántos van en el último minuto.
+- **Decidir conversacion** — decide con eso. Sin `previous_response_id` abre una conversación
+  nueva; con uno que resuelve, hereda su hilo; con uno que no existe o ya caducó, responde un
+  error 400 explícito en vez de empezar de cero en silencio. Aquí también se aplican los
+  límites de 100 turnos por conversación y 20 peticiones por minuto.
+- **Puede seguir** — el portero único del flujo. Todo lo que ya viene marcado como error (401,
+  400, 429) se desvía directo a la respuesta sin gastar una llamada al modelo. Solo lo válido
+  continúa hacia el agente.
+
+### El corazón: el agente y lo que cuelga de él
+
+- **Agente** — el nodo que razona. Recibe la pregunta, decide cuándo consultar el corpus y
+  redacta la respuesta. Su comportamiento lo fija el prompt del sistema, versionado en el
+  repositorio. Cuatro nodos le cuelgan como capacidades, no como pasos del flujo:
+- **Modelo** — el modelo principal, `gpt-5-mini`, con su presupuesto de tokens, su esfuerzo de
+  razonamiento y su techo de iteraciones configurados a valores medidos.
+- **Modelo de respaldo (NVIDIA)** — el suplente, `nvidia/nemotron-3-super-120b-a12b`. Entra si
+  el principal falla o se queda sin cuota.
+- **corpus_trayectoria** — la herramienta de búsqueda sobre PostgreSQL con pgvector. Devuelve
+  los cinco fragmentos más parecidos a la consulta.
+- **Embeddings OpenAI** — convierte la consulta en un vector con `text-embedding-3-small`, para
+  poder compararla contra el corpus.
+- **Memoria** — una ventana de las últimas 10 interacciones, con la conversación como llave.
+
+### El camino de salida: dar forma y responder
+
+- **Formatear response** — envuelve el texto del agente en un objeto `response` conforme al
+  estándar: identificador, modelo, items de salida y conteo de uso. Aquí vive también la
+  guardia que sustituye una salida vacía por un texto de respaldo, para que nunca salga una
+  respuesta en blanco.
+- **Error del agente** — la rama alterna. Si el agente falla, traduce el fallo a un error con
+  el código correcto: uno para tiempo agotado, otro para límite de peticiones, otro para
+  cualquier otro fallo. El texto crudo del error nunca se devuelve, porque puede traer trazas
+  internas.
+- **Responder** — cierra el ciclo del webhook con el cuerpo y el código HTTP que corresponda.
+  Un solo nodo sirve para 200, 400, 401, 429, 500 y 503.
+
+### Después de responder: el registro
+
+Estos dos corren **después** de que la respuesta ya salió, así que no le suman latencia:
+
+- **Preparar registro** — arma la fila del turno (identificadores, pregunta, respuesta, modelo,
+  versión del prompt, latencia, alerta de inyección) y la codifica en base64 para pasarla en un
+  solo parámetro.
+- **Registrar turno** — la inserta en PostgreSQL. Esa tabla es a la vez el mecanismo de memoria
+  y el registro de observabilidad. Si la inserción falla, el turno ya fue respondido: no se
+  pierde la respuesta por un fallo del registro.
+
+### Cómo se relacionan, en una frase
+
+La entrada se autentica y se valida antes de tocar el modelo; la memoria se resuelve contra la
+base de datos; un portero único descarta lo inválido; el agente responde apoyado en cuatro
+capacidades (modelo, respaldo, corpus y memoria); y la salida se formatea, se responde y solo
+entonces se registra.
 
 ## Cuánto tiempo guarda las conversaciones
 
